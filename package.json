@@ -1,19 +1,19 @@
 {
-  "name": "n8n-nodes-<...>",
+  "name": "n8n-nodes-md-to-docs",
   "version": "0.1.0",
-  "description": "",
+  "description": "Transform Markdown content into Google Docs API requests, enabling seamless integration within n8n workflows.",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
   "homepage": "",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Georgi Kyosev",
+    "email": "g.kyosev86@gmail.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/GiK986/n8n-nodes-md-to-docs.git"
   },
   "engines": {
     "node": ">=20.15"
