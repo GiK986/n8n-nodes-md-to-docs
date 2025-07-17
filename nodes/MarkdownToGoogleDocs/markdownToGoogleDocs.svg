@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#fff" fill-rule="evenodd"
+	viewBox="-18 0 90 80">
+	<use xlink:href="#prefix__a" x=".5" y=".5" />
+	<symbol id="prefix__a" overflow="visible">
+		<g stroke="none">
+			<path fill="#548df6" d="M36 0l22 22v53a4.99 4.99 0 01-5 5H5a4.99 4.99 0 01-5-5V5a4.99 4.99 0 015-5z" />
+			<path d="M14 40h30v3H14zm0 7h30v3H14zm0 8h30v3H14zm0 7h21v3H14z" />
+			<path fill="#abd0fb" d="M36 0l22 22H41c-2.77 0-5-2.48-5-5.25z" />
+			<path fill="#3e5bb9" d="M40.75 22L58 29.125V22z" />
+		</g>
+	</symbol>
+	<text x="8" y="37" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="#fff">M-t-G</text>
+</svg>
