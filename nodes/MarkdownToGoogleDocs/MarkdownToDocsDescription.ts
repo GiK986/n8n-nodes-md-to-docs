@@ -1,7 +1,8 @@
 import type { INodeProperties } from 'n8n-workflow';
 import { GOOGLE_DRIVE_FOLDER_URL_REGEX } from './types';
 
-export const nodeProperties: INodeProperties[] = [
+// Main operations for Markdown to Google Docs conversion
+export const markdownToDocsOperations: INodeProperties[] = [
 	{
 		displayName: 'Operation',
 		name: 'operation',
@@ -29,6 +30,10 @@ export const nodeProperties: INodeProperties[] = [
 		],
 		default: 'createDocument',
 	},
+];
+
+// Common properties for all operations
+const commonProperties: INodeProperties[] = [
 	{
 		displayName: 'Markdown Input',
 		name: 'markdownInput',
@@ -58,6 +63,10 @@ export const nodeProperties: INodeProperties[] = [
 			},
 		},
 	},
+];
+
+// Properties for convertToApiRequests operation
+const convertToApiRequestsOperation: INodeProperties[] = [
 	{
 		displayName: 'Output Format',
 		name: 'outputFormat',
@@ -81,6 +90,10 @@ export const nodeProperties: INodeProperties[] = [
 			},
 		},
 	},
+];
+
+// Properties for createDocument operation
+const createDocumentOperation: INodeProperties[] = [
 	{
 		displayName: 'Drive',
 		name: 'driveId',
@@ -202,4 +215,31 @@ export const nodeProperties: INodeProperties[] = [
 		],
 		description: 'The folder where to create the document',
 	},
+];
+
+// Properties for testCredentials operation
+const testCredentialsOperation: INodeProperties[] = [
+	// Currently no specific properties for test credentials operation
+];
+
+export const markdownToDocsFields: INodeProperties[] = [
+	/* -------------------------------------------------------------------------- */
+	/*                            Common Properties                               */
+	/* -------------------------------------------------------------------------- */
+	...commonProperties,
+
+	/* -------------------------------------------------------------------------- */
+	/*                        convertToApiRequests Operation                      */
+	/* -------------------------------------------------------------------------- */
+	...convertToApiRequestsOperation,
+
+	/* -------------------------------------------------------------------------- */
+	/*                          createDocument Operation                          */
+	/* -------------------------------------------------------------------------- */
+	...createDocumentOperation,
+
+	/* -------------------------------------------------------------------------- */
+	/*                         testCredentials Operation                          */
+	/* -------------------------------------------------------------------------- */
+	...testCredentialsOperation,
 ];

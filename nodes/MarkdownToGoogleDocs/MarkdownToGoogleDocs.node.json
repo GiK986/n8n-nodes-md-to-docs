@@ -1,0 +1,32 @@
+{
+	"node": "n8n-nodes-base.markdownToGoogleDocs",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Data & Storage", "Productivity", "Google", "Markdown"],
+	"subcategories": ["Document Management", "File Processing", "Content Conversion"],
+	"alias": ["md", "markdown", "google docs", "gdocs", "docs", "document", "converter", "md-to-docs", "m-t-g"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/GiK986/n8n-nodes-md-to-docs"
+			}
+		],
+		"generic": [
+			{
+				"label": "Google Docs API Documentation",
+				"icon": "📄",
+				"url": "https://developers.google.com/docs/api"
+			},
+			{
+				"label": "Markdown Guide",
+				"icon": "📝",
+				"url": "https://www.markdownguide.org/"
+			},
+			{
+				"label": "Google Drive Developer Documentation",
+				"icon": "💾",
+				"url": "https://developers.google.com/drive/api"
+			}
+		]
+	}
+}

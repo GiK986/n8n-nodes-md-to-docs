@@ -382,6 +382,17 @@ export class MarkdownProcessor {
 			itemLevel: number; // Number of tabs that will be removed
 		}> = [];
 
+		// adding a newline before the list
+		requests.push({
+			insertText: {
+				location: { index: insertIndex },
+				text: '\n', // Add a newline before the list
+			},
+		});
+		// Move index after the newline
+		currentIndex += 1;
+
+
 		// Insert all text content with leading tabs for nesting levels
 		// Google Docs API determines nesting by counting leading tabs
 		for (const item of processedData.items) {
@@ -416,6 +427,7 @@ export class MarkdownProcessor {
 		// Apply bullet formatting with proper nesting levels using Google Docs standard
 		if (processedData.items.length > 0) {
 			// Calculate the actual end index of the list content (without extra newline)
+			const listStartIndex = insertIndex + 1; // Start after the initial newline
 			const listEndIndex = currentIndex - 1; // End of actual list content
 
 			// First, create the paragraph bullets for the entire list
@@ -423,7 +435,7 @@ export class MarkdownProcessor {
 			requests.push({
 				createParagraphBullets: {
 					range: {
-						startIndex: insertIndex,
+						startIndex: listStartIndex,
 						endIndex: listEndIndex,
 					},
 					bulletPreset,
@@ -606,7 +618,7 @@ export class MarkdownProcessor {
 			});
 
 			// Calculate cell positions and add content with formatting
-			let currentCellIndex = insertIndex + 3; // First cell starts at table_start + 2
+			let currentCellIndex = insertIndex + 3; // +3 for first cell
 
 			for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
 				for (let colIndex = 0; colIndex < tableData[rowIndex].length; colIndex++) {
@@ -675,6 +687,15 @@ export class MarkdownProcessor {
 				// Add extra spacing between rows
 				currentCellIndex += 1;
 			}
+
+		// Add extra line break after the table
+		requests.push({
+			insertText: {
+				location: { index: currentCellIndex },
+				text: '\n',
+			},
+		});
+
 		} catch (error) {
 			// Fallback: Insert table as formatted text
 			console.warn('Table insertion failed, using text fallback:', error);
@@ -953,11 +974,6 @@ export class MarkdownProcessor {
 			const lastIndex = lastInsertTextRequest.insertText.location.index;
 			const lastTextLength = lastInsertTextRequest.insertText.text.length;
 			let newIndex = lastIndex + lastTextLength;
-
-			// If has InsertTable, we need to adjust the index accordingly
-			if (requests.some((req) => req.insertTable)) {
-				newIndex += 2;
-			}
 
 			return newIndex;
 		}

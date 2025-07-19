@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 
-import { nodeProperties } from './node-properties';
+import { markdownToDocsFields, markdownToDocsOperations } from './MarkdownToDocsDescription';
 import { resourceLocatorMethods } from './resource-locators';
 import { MarkdownProcessor } from './markdown-processor';
 import { GoogleDocsAPI } from './google-docs-api';
@@ -37,7 +37,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 				Accept: 'application/json',
 			},
 		},
-		properties: nodeProperties,
+		properties: [...markdownToDocsOperations, ...markdownToDocsFields],
 	};
 
 	methods = {
@@ -89,7 +89,11 @@ export class MarkdownToGoogleDocs implements INodeType {
 						const folderId =
 							typeof folderParam === 'object' ? folderParam.value : folderParam || 'root';
 						const folderName =
-							typeof folderParam === 'object' ? folderParam.name : folderParam === 'root'	? 'My Drive' : folderParam;
+							typeof folderParam === 'object'
+								? folderParam.name
+								: folderParam === 'root'
+									? 'My Drive'
+									: folderParam;
 
 						result = await GoogleDocsAPI.createGoogleDocsDocumentWithAPI(
 							this,
@@ -117,13 +121,16 @@ export class MarkdownToGoogleDocs implements INodeType {
 				});
 			} catch (error) {
 				if (this.continueOnFail()) {
-					returnData.push({
-						json: { error: error.message },
-						pairedItem: { item: itemIndex },
+					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
+				} else {
+					if (error.context) {
+						error.context.itemIndex = itemIndex;
+						throw error;
+					}
+					throw new NodeOperationError(this.getNode(), error, {
+						itemIndex,
 					});
-					continue;
 				}
-				throw error;
 			}
 		}
 
