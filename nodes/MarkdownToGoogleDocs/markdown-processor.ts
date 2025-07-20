@@ -181,7 +181,7 @@ export class MarkdownProcessor {
 	 * Check if element has inline formatting (bold, italic, links, etc.)
 	 */
 	static hasInlineFormatting(element: any): boolean {
-		const formattingTags = ['STRONG', 'B', 'EM', 'I', 'CODE', 'A'];
+		const formattingTags = ['STRONG', 'B', 'EM', 'I', 'CODE', 'A', 'BR'];
 		return formattingTags.some((tag) => element.querySelector(tag.toLowerCase()));
 	}
 
@@ -322,6 +322,9 @@ export class MarkdownProcessor {
 			if (node.nodeType === 3) {
 				// Text node
 				result += node.textContent;
+			} else if (node.nodeName === 'BR') {
+				// BR tag - convert to newline
+				result += '\n';
 			} else {
 				// Element node
 				const beforeLength = result.length;
