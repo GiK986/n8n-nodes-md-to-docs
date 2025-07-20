@@ -4,11 +4,13 @@
 
 ![n8n-nodes-md-to-docs](https://img.shields.io/badge/n8n-community--node-ff6d5a)
 
-This is an n8n community node. It lets you use Markdown to Google Docs conversion in your n8n workflows.
+This is an n8n community node. It lets you use **Markdown to Google Docs** conversion in your n8n workflows.
 
-This node transforms Markdown content into fully formatted Google Docs documents, handling complex elements like nested lists, tables with styling, and mixed text formatting through Google's Docs API.
+**Google Docs** is a popular online document editor that allows you to create, edit, and collaborate on documents in real time. With this node, you can automate the process of turning Markdown into beautifully formatted Google Docs—no more manual copy-paste!
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
+
+---
 
 [📦 Installation](#installation)
 [🛠️ Operations](#operations)
@@ -30,11 +32,15 @@ Restart n8n to load the new node.
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
+---
+
 ## Operations
 
-- **Create Document**: Directly create a Google Docs document with Markdown content
-- **Convert to API Requests**: Transform Markdown into Google Docs API request JSON
-- **Test Credentials**: Verify Google API credentials and permissions
+- **Create Document**: Instantly create a Google Docs document from Markdown content.
+- **Convert to API Requests**: Transform Markdown into Google Docs API request JSON (for advanced HTTP Request node usage).
+- **Test Credentials**: Verify your Google API credentials and permissions.
+
+---
 
 ## Credentials
 
@@ -78,6 +84,8 @@ This node requires Google API credentials to authenticate with Google Docs and G
    - Use **Test Credentials** operation
    - Check for successful connection
 
+---
+
 ## Compatibility
 
 **Minimum Requirements:**
@@ -105,6 +113,8 @@ This node requires Google API credentials to authenticate with Google Docs and G
 - ⚠️ **Node.js < 20**: Not tested and may have compatibility issues
 - ⚠️ **Google API changes**: Will be updated as needed
 
+---
+
 ## Usage
 
 This node provides powerful Markdown to Google Docs conversion with advanced formatting capabilities. Here's how to use it effectively:
@@ -118,6 +128,12 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
    - **"Convert to API Requests"** - Get JSON for HTTP Request node
 4. **Configure document title** and output format
 5. **Execute** - The node handles the Google Docs API calls
+
+**Pro tip:** Supports advanced formatting, images (via public URLs), tables, checkboxes, and even deep list nesting.
+
+*For more help, see the [n8n Try it out documentation](https://docs.n8n.io/getting-started/try-it-out/).*
+
+---
 
 ### 🎯 Key Features
 
@@ -182,11 +198,15 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 | `---` | Horizontal rules | ✅ |
 | `![images](url)` | Embedded images (URL only) | ✅ |
 
+---
+
 ## Resources
 
 - [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
 - [Google Docs API Reference](https://developers.google.com/docs/api)
 - [Markdown Specification](https://spec.commonmark.org/)
+
+---
 
 ## Version History
 
@@ -255,6 +275,8 @@ console.log(greeting);
 }
 ```
 
+---
+
 ## ⚙️ Configuration Options
 
 | Parameter       | Type    | Description                                |
@@ -263,6 +285,8 @@ console.log(greeting);
 | `documentTitle` | string  | Title for the Google Docs document         |
 | `operation`     | options | "convertToApiRequests" or "createDocument" |
 | `outputFormat`  | options | "single" or "multiple" request format      |
+
+---
 
 ## 🛠️ Development
 
@@ -296,6 +320,8 @@ cd ~/.n8n/nodes
 npm link n8n-nodes-md-to-docs
 ```
 
+---
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -303,6 +329,8 @@ npm link n8n-nodes-md-to-docs
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+---
 
 ## 🗺️ Roadmap
 
@@ -328,6 +356,8 @@ npm link n8n-nodes-md-to-docs
 - [ ] **Export Options**: Support for additional output formats (PDF, DOCX)
 - [ ] **Collaborative Features**: Document sharing and permission management
 
+---
+
 ## 📄 License
 
 MIT © [Georgi Kyosev](mailto:g.kyosev86@gmail.com)
@@ -335,3 +365,7 @@ MIT © [Georgi Kyosev](mailto:g.kyosev86@gmail.com)
 ---
 
 Made with ❤️ for the n8n community
+
+---
+
+**Tags:** n8n, markdown, google-docs, automation, community-node, n8n-workflow, document-generation
