@@ -134,6 +134,15 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 - **Smart Tables**: Header styling (bold + centered) with full cell formatting
 - **Deep Nesting**: Unlimited list levels with proper indentation
 - **Precise Positioning**: Accurate text range calculations for Google Docs API
+- **Image Embedding**: Direct URL-based image insertion with optional sizing
+- **Checkbox Lists**: Native Google Docs checkboxes for task lists
+
+**📋 Image Support Notes:**
+
+- ✅ **URL-based images**: Direct embedding from public URLs (`![alt](https://example.com/image.png)`)
+- ✅ **Optional sizing**: Width/height attributes supported
+- ⚠️ **URL requirements**: Must be publicly accessible, under 2KB URL length
+- ❌ **Local files**: File uploads not supported (URL-only)
 
 ### 🤖 AI Agent Integration
 
@@ -166,11 +175,12 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 | `**bold**` / `*italic*` | Text formatting + nested combinations | ✅ |
 | `[links](url)` | Hyperlinks in any context | ✅ |
 | `- lists` / `1. lists` | Bulleted/numbered with unlimited nesting | ✅ |
+| `- [x]` / `- [ ]` | Native Google Docs checkboxes | ✅ |
 | `` `code` `` | Monospace formatting + syntax highlighting | ✅ |
 | `\| tables \|` | Structured tables with header styling | ✅ |
 | `> quotes` | Indented blockquotes with internal formatting | ✅ |
 | `---` | Horizontal rules | ✅ |
-| `![images](url)` | Embedded images | 🚧 |
+| `![images](url)` | Embedded images (URL only) | ✅ |
 
 ## Resources
 
@@ -215,6 +225,8 @@ console.log(greeting);
 \`\`\`
 
 > Important note: This will be formatted as a blockquote.
+
+![Example Image](https://via.placeholder.com/300x200.png?text=Sample+Image)
 
 | Feature  | Status |
 | -------- | ------ |
@@ -310,10 +322,12 @@ npm link n8n-nodes-md-to-docs
 - [x] **Mixed Content Formatting**: Bold, italic, code, and links working in all contexts (lists, tables, quotes)
 - [x] **Comprehensive Markdown Support**: Headers, paragraphs, blockquotes, code blocks, horizontal rules
 - [x] **Direct Integration**: One-click document creation with `createDocument` operation - no HTTP Request node needed
+- [x] **Checkbox Lists**: Native Google Docs checkboxes for `- [x]` and `- [ ]` syntax with proper checked/unchecked states
+- [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
 
 🚀 **Future Enhancements**
 
-- [ ] **Image Support**: Convert Markdown images to Google Docs embedded images
+- [ ] **Local Image Upload**: Support for local image file uploads and conversion
 - [ ] **Advanced Table Features**: Column alignment, table styling options, merged cells
 - [ ] **Custom Styling**: User-defined fonts, colors, and spacing
 - [ ] **Template System**: Pre-defined Google Docs templates with placeholder replacement

@@ -1,5 +1,7 @@
 # Markdown to Google Docs Demo
 
+![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+
 This document demonstrates all supported Markdown features organized from basic to advanced.
 
 ---
@@ -85,6 +87,11 @@ Here's a link to [n8n documentation](https://docs.n8n.io) for workflow automatio
   - Has *italic text*
   - Includes `code snippets`
   - Links to [external resources](https://n8n.io)
+
+### Checkbox List
+
+- [x] **Completed task**
+- [ ] **Incomplete task**
 
 ---
 

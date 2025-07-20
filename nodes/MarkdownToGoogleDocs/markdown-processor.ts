@@ -29,17 +29,6 @@ export class MarkdownProcessor {
 		const requests: GoogleDocsRequest[] = [];
 		let insertIndex = 1; // Start after document title
 
-		// // Add document title
-		// if (documentTitle) {
-		// 	requests.push({
-		// 		insertText: {
-		// 			location: { index: 1 },
-		// 			text: documentTitle + '\n\n',
-		// 		},
-		// 	});
-		// 	insertIndex += documentTitle.length + 2;
-		// }
-
 		// Process HTML elements
 		const elements = document.body.childNodes;
 		for (const element of elements) {
@@ -119,6 +108,9 @@ export class MarkdownProcessor {
 			case 'HR':
 				return this.processHorizontalRule(insertIndex);
 
+			case 'IMG':
+				return this.processImage(element, insertIndex);
+
 			default:
 				// For other elements or text nodes, try to extract text content
 				if (element.textContent && element.textContent.trim()) {
@@ -169,8 +161,9 @@ export class MarkdownProcessor {
 	static processParagraph(element: any, insertIndex: number): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 
-		// Check if paragraph has inline formatting
-		if (this.hasInlineFormatting(element)) {
+		// Check if paragraph contains images or inline formatting
+		const imgElements = element.querySelectorAll('img');
+		if (imgElements.length > 0 || this.hasInlineFormatting(element)) {
 			return this.processParagraphWithInlineFormatting(element, insertIndex);
 		}
 
@@ -197,13 +190,23 @@ export class MarkdownProcessor {
 	}
 
 	/**
-	 * Process paragraph with inline formatting
+	 * Process paragraph with inline formatting and/or images
 	 */
 	static processParagraphWithInlineFormatting(
 		element: any,
 		insertIndex: number,
 	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
+
+		// Check if we have any IMG elements that need special handling
+		const imgElements = element.querySelectorAll('img');
+
+		if (imgElements.length > 0) {
+			// Process mixed content (text + images + formatting)
+			return this.processMixedContent(element, insertIndex);
+		}
+
+		// Original inline formatting logic for text-only content
 		const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
 
 		// Recursively process child nodes to build text and track formatting
@@ -231,6 +234,85 @@ export class MarkdownProcessor {
 	}
 
 	/**
+	 * Process mixed content (text + images + inline formatting)
+	 */
+	static processMixedContent(element: any, insertIndex: number): GoogleDocsRequest[] {
+		const requests: GoogleDocsRequest[] = [];
+		let currentIndex = insertIndex;
+
+		// Process all child nodes in order (text nodes, image elements, formatted elements)
+		for (const child of element.childNodes) {
+			if (child.nodeType === 3) {
+				// Text node
+				const text = child.textContent;
+				if (text && text.trim()) {
+					requests.push({
+						insertText: {
+							location: { index: currentIndex },
+							text: text,
+						},
+					});
+					currentIndex += text.length;
+				}
+			} else if (child.nodeType === 1 && child.nodeName === 'IMG') {
+				// Image element
+				const imageRequests = this.processImage(child, currentIndex);
+				requests.push(...imageRequests);
+
+				// Update index based on image requests
+				currentIndex = this.calculateNewIndex(imageRequests);
+			} else if (child.nodeType === 1) {
+				// Other element - process with inline formatting if needed
+				if (this.hasInlineFormatting(child)) {
+					const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> =
+						[];
+					const textContent = this.processChildNodes(child.childNodes, formatRanges);
+
+					if (textContent.trim()) {
+						// Insert text
+						requests.push({
+							insertText: {
+								location: { index: currentIndex },
+								text: textContent,
+							},
+						});
+
+						// Apply formatting
+						for (const range of formatRanges) {
+							const formatRequest = this.createFormatRequest(range, currentIndex);
+							if (formatRequest) {
+								requests.push(formatRequest);
+							}
+						}
+
+						currentIndex += textContent.length;
+					}
+				} else {
+					// Simple element
+					const text = child.textContent;
+					if (text && text.trim()) {
+						requests.push({
+							insertText: {
+								location: { index: currentIndex },
+								text: text,
+							},
+						});
+						currentIndex += text.length;
+					}
+				}
+			}
+		}
+
+		// Add paragraph ending newline
+		requests.push({
+			insertText: {
+				location: { index: currentIndex },
+				text: '\n',
+			},
+		});
+
+		return requests;
+	} /**
 	 * Recursively process child nodes to extract text and formatting
 	 */
 	static processChildNodes(
@@ -355,7 +437,17 @@ export class MarkdownProcessor {
 	 * Process unordered list (UL)
 	 */
 	static processUnorderedList(element: any, insertIndex: number): GoogleDocsRequest[] {
-		return this.processList(element, insertIndex, 'BULLET_DISC_CIRCLE_SQUARE');
+		// Check if this is a checkbox list by looking for input[type="checkbox"] elements
+		const checkboxInputs = element.querySelectorAll('input[type="checkbox"]');
+		const isCheckboxList = checkboxInputs.length > 0;
+
+		if (isCheckboxList) {
+			// Use special checkbox bullet preset for checkbox lists
+			return this.processList(element, insertIndex, 'BULLET_CHECKBOX');
+		} else {
+			// Use regular bullet preset for normal lists
+			return this.processList(element, insertIndex, 'BULLET_DISC_CIRCLE_SQUARE');
+		}
 	}
 
 	/**
@@ -373,7 +465,7 @@ export class MarkdownProcessor {
 		let currentIndex = insertIndex;
 
 		// Process list items recursively to handle nesting
-		const processedData = this.processListItemsRecursively(element, 0);
+		const processedData = this.processListItemsRecursively(element, 0, bulletPreset);
 
 		// Store formatting data to apply AFTER createParagraphBullets
 		const formattingData: Array<{
@@ -391,7 +483,6 @@ export class MarkdownProcessor {
 		});
 		// Move index after the newline
 		currentIndex += 1;
-
 
 		// Insert all text content with leading tabs for nesting levels
 		// Google Docs API determines nesting by counting leading tabs
@@ -443,40 +534,33 @@ export class MarkdownProcessor {
 			});
 
 			// Now apply all inline formatting AFTER createParagraphBullets
-
 			for (const formatData of formattingData) {
-				// For each formatData, we need to calculate how many tabs were removed
-				// from ALL items that appear BEFORE this item in the list
-				let tabsRemovedBefore = 0;
-				let currentPos = insertIndex;
+				// Simple adjustment: only account for tabs removed from this specific item
+				// The range is relative to text WITHOUT tabs, so adjust the base position
 
-				// Go through all items and count tabs from items that come before this formatData
+				// Calculate how many tabs were removed before this item's position
+				let totalTabsRemovedBefore = 0;
+				let currentItemPos = insertIndex + 1; // Start after initial newline
+
 				for (const item of processedData.items) {
-					const itemTextWithTabs = '\t'.repeat(item.level) + item.text;
-					const itemStartPos = currentPos;
+					const itemWithTabs = '\t'.repeat(item.level) + item.text;
 
-					if (itemStartPos === formatData.itemStartIndex) {
-						// Found our item - stop counting tabs
+					if (currentItemPos === formatData.itemStartIndex) {
+						// Found our target item, stop counting
 						break;
-					} else if (itemStartPos < formatData.itemStartIndex) {
-						// This item comes before ours - count its tabs
-						tabsRemovedBefore += item.level;
+					} else if (currentItemPos < formatData.itemStartIndex) {
+						// This item comes before our target, count its tabs
+						totalTabsRemovedBefore += item.level;
 					}
 
-					currentPos += itemTextWithTabs.length + 1; // Move to next item position
+					currentItemPos += itemWithTabs.length + 1; // +1 for newline
 				}
 
-				const adjustedBaseIndex = formatData.itemStartIndex - tabsRemovedBefore;
+				// Adjust the item start position by removing tabs from previous items
+				const adjustedItemStart = formatData.itemStartIndex - totalTabsRemovedBefore;
 
-				const formatRequest = this.createFormatRequest(
-					{
-						start: formatData.range.start,
-						end: formatData.range.end,
-						type: formatData.range.type,
-						url: formatData.range.url,
-					},
-					adjustedBaseIndex,
-				);
+				// Use the original range without further adjustment
+				const formatRequest = this.createFormatRequest(formatData.range, adjustedItemStart);
 				if (formatRequest) {
 					requests.push(formatRequest);
 				}
@@ -506,6 +590,7 @@ export class MarkdownProcessor {
 	static processListItemsRecursively(
 		element: any,
 		level: number,
+		bulletPreset?: string,
 	): {
 		items: Array<{
 			text: string;
@@ -527,6 +612,16 @@ export class MarkdownProcessor {
 		for (const listItem of directListItems) {
 			const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
 
+			// Check if this is a checkbox list item
+			const checkboxInput = (listItem as any).querySelector('input[type="checkbox"]');
+			let checkboxPrefix = '';
+
+			// Add Unicode checkbox symbols based on checked state
+			if (checkboxInput) {
+				// Convert checkbox to Unicode checkbox symbols based on checked state
+				checkboxPrefix = checkboxInput.checked ? '✅ ' : '❌ ';
+			}
+
 			// Extract text content from this list item (excluding nested lists)
 			// Process ALL child nodes together to maintain proper formatting positions
 			const nonNestedChildren = Array.from((listItem as any).childNodes).filter(
@@ -534,11 +629,36 @@ export class MarkdownProcessor {
 			);
 
 			// Process all non-nested children together like in processParagraphWithInlineFormatting
-			const itemText = this.processChildNodes(nonNestedChildren, formatRanges);
+			let itemText = this.processChildNodes(nonNestedChildren, formatRanges);
+
+			// Trim the text and adjust format ranges accordingly
+			const trimmedText = itemText.trim();
+			const leadingSpaces = itemText.length - itemText.trimStart().length;
+
+			// Adjust all format ranges to account for removed leading spaces
+			if (leadingSpaces > 0) {
+				for (const range of formatRanges) {
+					range.start = Math.max(0, range.start - leadingSpaces);
+					range.end = Math.max(0, range.end - leadingSpaces);
+				}
+			}
+
+			// Add checkbox prefix if this is a checkbox item and we're not using native checkboxes
+			if (checkboxPrefix) {
+				itemText = checkboxPrefix + trimmedText;
+
+				// Adjust all format ranges to account for the checkbox prefix
+				for (const range of formatRanges) {
+					range.start += checkboxPrefix.length;
+					range.end += checkboxPrefix.length;
+				}
+			} else {
+				itemText = trimmedText;
+			}
 
 			// Add this item
 			items.push({
-				text: itemText.trim(),
+				text: itemText,
 				level: level,
 				formatRanges: formatRanges,
 			});
@@ -549,7 +669,7 @@ export class MarkdownProcessor {
 			);
 
 			for (const nestedList of nestedLists) {
-				const nestedResult = this.processListItemsRecursively(nestedList, level + 1);
+				const nestedResult = this.processListItemsRecursively(nestedList, level + 1, bulletPreset);
 				items.push(...nestedResult.items);
 			}
 		}
@@ -688,14 +808,13 @@ export class MarkdownProcessor {
 				currentCellIndex += 1;
 			}
 
-		// Add extra line break after the table
-		requests.push({
-			insertText: {
-				location: { index: currentCellIndex },
-				text: '\n',
-			},
-		});
-
+			// Add extra line break after the table
+			requests.push({
+				insertText: {
+					location: { index: currentCellIndex },
+					text: '\n',
+				},
+			});
 		} catch (error) {
 			// Fallback: Insert table as formatted text
 			console.warn('Table insertion failed, using text fallback:', error);
@@ -980,6 +1099,192 @@ export class MarkdownProcessor {
 
 		// This should never happen as we always have insertText requests
 		return 1;
+	}
+
+	/**
+	 * Process image elements (IMG) using Google Docs API insertInlineImage
+	 */
+	static processImage(element: any, insertIndex: number): GoogleDocsRequest[] {
+		const src = element.getAttribute('src') || '';
+		const alt = element.getAttribute('alt') || 'Image';
+		const width = element.getAttribute('width');
+		const height = element.getAttribute('height');
+
+		// Validate URL - must be publicly accessible and under 2KB
+		if (!src || src.length > 2000) {
+			// Fallback to text representation for invalid URLs
+			return this.processImageFallback(alt, src, insertIndex);
+		}
+
+		// Check if URL looks like a valid image URL
+		if (!this.isValidImageUrl(src)) {
+			return this.processImageFallback(alt, src, insertIndex);
+		}
+
+		const requests: GoogleDocsRequest[] = [];
+
+		// add newline before the image
+		requests.push({
+			insertText: {
+				location: { index: insertIndex },
+				text: '\n', // Add a newline before the image
+			},
+		});
+
+		// Move index after the newline
+		insertIndex += 1;
+
+		// Create insertInlineImage request
+		const imageRequest: any = {
+			insertInlineImage: {
+				uri: src,
+				location: { index: insertIndex },
+			},
+		};
+
+		// Add optional size if specified
+		if (width || height) {
+			imageRequest.insertInlineImage.objectSize = {};
+
+			if (width) {
+				const widthValue = this.parseImageDimension(width);
+				if (widthValue > 0) {
+					imageRequest.insertInlineImage.objectSize.width = {
+						magnitude: widthValue,
+						unit: 'PT',
+					};
+				}
+			}
+
+			if (height) {
+				const heightValue = this.parseImageDimension(height);
+				if (heightValue > 0) {
+					imageRequest.insertInlineImage.objectSize.height = {
+						magnitude: heightValue,
+						unit: 'PT',
+					};
+				}
+			}
+		}
+
+		requests.push(imageRequest);
+
+		// add newline after the image (no alt text caption for valid images)
+		requests.push({
+			insertText: {
+				location: { index: insertIndex + 1 },
+				text: '\n',
+			},
+		});
+
+		return requests;
+	}
+
+	/**
+	 * Fallback method for problematic images - creates styled text placeholder
+	 */
+	static processImageFallback(alt: string, src: string, insertIndex: number): GoogleDocsRequest[] {
+		const displayText = `📷 ${alt} invalid source address!`;
+		const sourceText = src ? `\nSource: ${src}` : '';
+		const fullText = `${displayText}${sourceText}\n\n`;
+
+		const requests: GoogleDocsRequest[] = [];
+
+		// Insert the placeholder text
+		requests.push({
+			insertText: {
+				location: { index: insertIndex },
+				text: fullText,
+			},
+		});
+
+		// Style the image placeholder (bold and with background color)
+		requests.push({
+			updateTextStyle: {
+				range: {
+					startIndex: insertIndex,
+					endIndex: insertIndex + displayText.length,
+				},
+				textStyle: {
+					bold: true,
+					backgroundColor: {
+						color: {
+							rgbColor: { red: 0.9, green: 0.95, blue: 1.0 },
+						},
+					},
+				},
+				fields: 'bold,backgroundColor',
+			},
+		});
+
+		// Style the source text if present (italic and smaller)
+		if (sourceText) {
+			requests.push({
+				updateTextStyle: {
+					range: {
+						startIndex: insertIndex + displayText.length + 1, // +1 for newline
+						endIndex: insertIndex + displayText.length + sourceText.length,
+					},
+					textStyle: {
+						italic: true,
+						fontSize: { magnitude: 9, unit: 'PT' },
+					},
+					fields: 'italic,fontSize',
+				},
+			});
+		}
+
+		return requests;
+	}
+
+	/**
+	 * Validate if URL looks like a valid image URL
+	 */
+	static isValidImageUrl(url: string): boolean {
+		try {
+			const parsedUrl = new URL(url);
+
+			// Check if it's HTTP/HTTPS
+			if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+				return false;
+			}
+
+			// Check for common image extensions
+			const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+			const pathname = parsedUrl.pathname.toLowerCase();
+			const hasImageExtension = imageExtensions.some((ext) => pathname.endsWith(ext));
+
+			// Accept if has image extension or looks like an image service URL
+			const isImageService = /\.(googleapis|imgur|cloudinary|unsplash|pexels)\./.test(
+				parsedUrl.hostname,
+			);
+
+			return hasImageExtension || isImageService;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Parse image dimension from string (supports px, pt, or plain numbers)
+	 */
+	static parseImageDimension(dimension: string): number {
+		if (!dimension) return 0;
+
+		// Remove units and parse number
+		const numericValue = parseFloat(dimension.replace(/[^\d.]/g, ''));
+
+		if (isNaN(numericValue) || numericValue <= 0) {
+			return 0;
+		}
+
+		// Convert pixels to points if needed (1px = 0.75pt approximately)
+		if (dimension.toLowerCase().includes('px')) {
+			return numericValue * 0.75;
+		}
+
+		// Default to points or treat plain numbers as points
+		return numericValue;
 	}
 
 	/**

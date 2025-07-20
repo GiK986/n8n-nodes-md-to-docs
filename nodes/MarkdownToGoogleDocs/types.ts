@@ -8,6 +8,21 @@ export interface GoogleDocsRequest {
 		endOfSegmentLocation?: { segmentId: string };
 		text: string;
 	};
+	insertInlineImage?: {
+		uri: string;
+		location?: { index: number };
+		endOfSegmentLocation?: { segmentId: string };
+		objectSize?: {
+			width?: {
+				magnitude: number;
+				unit: string;
+			};
+			height?: {
+				magnitude: number;
+				unit: string;
+			};
+		};
+	};
 	updateTextStyle?: {
 		range: {
 			startIndex: number;
@@ -19,6 +34,10 @@ export interface GoogleDocsRequest {
 			weightedFontFamily?: { fontFamily: string };
 			backgroundColor?: any;
 			link?: { url: string };
+			fontSize?: {
+				magnitude: number;
+				unit: string;
+			};
 		};
 		fields: string;
 	};
