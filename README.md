@@ -190,14 +190,7 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 
 ## Version History
 
-**v0.1.0** - Initial Release
-
-- Core Markdown to Google Docs conversion
-- Advanced table formatting with header styling
-- Nested formatting support (bold + italic combinations)
-- Deep list nesting with proper Google Docs bullets
-- AI Agent Tool compatibility
-- Multiple output formats (single/multiple requests)
+[📅 Full changelog](./CHANGELOG.md)
 
 ---
 
