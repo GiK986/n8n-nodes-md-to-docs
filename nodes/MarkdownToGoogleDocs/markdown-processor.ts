@@ -15,11 +15,7 @@ export class MarkdownProcessor {
 		apiReadyFormat: boolean = false,
 	): ConversionResult {
 		// Fix escaped characters from n8n
-		const cleanMarkdown = markdownInput.replace('\`', '`'); // Fix single backtick escape for testing strings
-		// .replace(/\\n/g, '\n')
-		// .replace(/\\t/g, '\t')
-		// .replace(/\\`/g, '`')
-		// .replace(/\\"/g, '"');
+		const cleanMarkdown = markdownInput.replace('\`', '`');
 
 		// Convert markdown to HTML
 		const html = marked.parse(cleanMarkdown, { async: false }) as string;
@@ -817,7 +813,6 @@ export class MarkdownProcessor {
 			});
 		} catch (error) {
 			// Fallback: Insert table as formatted text
-			console.warn('Table insertion failed, using text fallback:', error);
 			return this.processTableAsText(
 				tableData.map((row) => row.map((cell) => cell.content)),
 				insertIndex,
