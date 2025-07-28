@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-07-28
+
+### Added
+
+- **Template System**: Users can now create Google Docs from a template. This feature preserves the header and footer of the template, allowing for consistent document styling.
+  - Added a `useTemplate` boolean option to enable/disable this feature.
+  - New `templateFolderId` dropdown to select the folder containing templates.
+  - New `templateDocumentId` dropdown to select the specific template document from the chosen folder.
+
 ## [0.1.1] - 2025-07-20
 
 ### Fixed

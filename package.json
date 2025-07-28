@@ -1,57 +1,57 @@
 {
-  "name": "n8n-nodes-md-to-docs",
-  "version": "0.1.1",
-  "description": "Transform Markdown content into Google Docs API requests, enabling seamless integration within n8n workflows.",
-  "keywords": [
-    "n8n-community-node-package"
-  ],
-  "license": "MIT",
-  "homepage": "https://github.com/GiK986/n8n-nodes-md-to-docs#readme",
-  "author": {
-    "name": "Georgi Kyosev",
-    "email": "g.kyosev86@gmail.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/GiK986/n8n-nodes-md-to-docs.git"
-  },
-  "engines": {
-    "node": ">=20.15"
-  },
-  "main": "index.js",
-  "scripts": {
-    "build": "npx rimraf dist && tsc && gulp build:icons",
-    "dev": "tsc --watch",
-    "format": "prettier nodes --write",
-    "lint": "eslint nodes package.json",
-    "lintfix": "eslint nodes package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes package.json"
-  },
-  "files": [
-    "dist"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [],
-    "nodes": [
-      "dist/nodes/MarkdownToGoogleDocs/MarkdownToGoogleDocs.node.js"
-    ]
-  },
-  "dependencies": {
-    "jsdom": "^26.1.0",
-    "marked": "^16.0.0"
-  },
-  "devDependencies": {
-    "@types/jsdom": "^21.1.7",
-    "@typescript-eslint/parser": "~8.32.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.3",
-    "gulp": "^5.0.0",
-    "n8n-workflow": "^1.82.0",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
+	"name": "n8n-nodes-md-to-docs",
+	"version": "0.2.0",
+	"description": "Transform Markdown content into Google Docs API requests, enabling seamless integration within n8n workflows.",
+	"keywords": [
+		"n8n-community-node-package"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/GiK986/n8n-nodes-md-to-docs#readme",
+	"author": {
+		"name": "Georgi Kyosev",
+		"email": "g.kyosev86@gmail.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/GiK986/n8n-nodes-md-to-docs.git"
+	},
+	"engines": {
+		"node": ">=20.15"
+	},
+	"main": "index.js",
+	"scripts": {
+		"build": "npx rimraf dist && tsc && gulp build:icons",
+		"dev": "tsc --watch",
+		"format": "prettier nodes --write",
+		"lint": "eslint nodes package.json",
+		"lintfix": "eslint nodes package.json --fix",
+		"prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [],
+		"nodes": [
+			"dist/nodes/MarkdownToGoogleDocs/MarkdownToGoogleDocs.node.js"
+		]
+	},
+	"dependencies": {
+		"jsdom": "^26.1.0",
+		"marked": "^16.0.0"
+	},
+	"devDependencies": {
+		"@types/jsdom": "^21.1.7",
+		"@typescript-eslint/parser": "~8.32.0",
+		"eslint": "^8.57.0",
+		"eslint-plugin-n8n-nodes-base": "^1.16.3",
+		"gulp": "^5.0.0",
+		"n8n-workflow": "^1.82.0",
+		"prettier": "^3.5.3",
+		"typescript": "^5.8.2"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
 }
