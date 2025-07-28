@@ -285,6 +285,9 @@ console.log(greeting);
 | `documentTitle` | string  | Title for the Google Docs document         |
 | `operation`     | options | "convertToApiRequests" or "createDocument" |
 | `outputFormat`  | options | "single" or "multiple" request format      |
+| `useTemplate` | boolean | Whether to use a Google Docs template for creation |
+| `templateFolderId` | resourceLocator | The folder containing the template documents |
+| `templateDocumentId` | resourceLocator | The specific template document to use |
 
 ---
 
@@ -345,13 +348,13 @@ npm link n8n-nodes-md-to-docs
 - [x] **Direct Integration**: One-click document creation with `createDocument` operation - no HTTP Request node needed
 - [x] **Checkbox Lists**: Native Google Docs checkboxes for `- [x]` and `- [ ]` syntax with proper checked/unchecked states
 - [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
+- [x] **Template System**: Create documents from a template, preserving headers and footers. Select a template from any folder in your Google Drive.
 
 🚀 **Future Enhancements**
 
 - [ ] **Local Image Upload**: Support for local image file uploads and conversion
 - [ ] **Advanced Table Features**: Column alignment, table styling options, merged cells
 - [ ] **Custom Styling**: User-defined fonts, colors, and spacing
-- [ ] **Template System**: Pre-defined Google Docs templates with placeholder replacement
 - [ ] **Batch Processing**: Handle multiple Markdown files in a single operation
 - [ ] **Export Options**: Support for additional output formats (PDF, DOCX)
 - [ ] **Collaborative Features**: Document sharing and permission management

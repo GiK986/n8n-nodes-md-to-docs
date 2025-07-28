@@ -33,7 +33,7 @@ export const resourceLocatorMethods = {
 					qs: {
 						pageSize: 200,
 					},
-				}
+				},
 			);
 
 			if (response?.drives && Array.isArray(response.drives)) {
@@ -54,7 +54,7 @@ export const resourceLocatorMethods = {
 
 			return {
 				results: filter
-					? results.filter(item => item.name.toLowerCase().includes(filter.toLowerCase()))
+					? results.filter((item) => item.name.toLowerCase().includes(filter.toLowerCase()))
 					: results,
 				paginationToken: response?.nextPageToken,
 			};
@@ -128,7 +128,7 @@ export const resourceLocatorMethods = {
 					method: 'GET' as IHttpRequestMethods,
 					url: 'https://www.googleapis.com/drive/v3/files',
 					qs,
-				}
+				},
 			);
 
 			if (response?.files && Array.isArray(response.files)) {
@@ -157,6 +157,73 @@ export const resourceLocatorMethods = {
 					},
 				],
 			};
+		}
+	},
+
+	async getTemplateDocuments(
+		this: ILoadOptionsFunctions,
+		filter?: string,
+		paginationToken?: string,
+	): Promise<INodeListSearchResult> {
+		try {
+			const results: INodeListSearchItems[] = [];
+
+			let folderId = '';
+			try {
+				const folderParam = this.getNodeParameter('templateFolderId', 0);
+				if (folderParam && typeof folderParam === 'object' && 'value' in folderParam) {
+					folderId = (folderParam as any).value;
+				} else if (typeof folderParam === 'string') {
+					folderId = folderParam;
+				}
+			} catch (error) {
+				// No folder selected, return empty results
+				return { results: [] };
+			}
+
+			if (!folderId) {
+				return { results: [] };
+			}
+
+			const qs: IDataObject = {
+				q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false`,
+				pageSize: 100,
+				fields: 'files(id,name)',
+				pageToken: paginationToken,
+			};
+
+			if (filter) {
+				qs.q += ` and name contains '${filter.replace("'", "\\'")}'`;
+			}
+
+			const response = await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'googleDocsOAuth2Api',
+				{
+					method: 'GET' as IHttpRequestMethods,
+					url: 'https://www.googleapis.com/drive/v3/files',
+					qs,
+				},
+			);
+
+			if (response?.files && Array.isArray(response.files)) {
+				for (const doc of response.files) {
+					if (doc.name && doc.id) {
+						results.push({
+							name: doc.name as string,
+							value: doc.id as string,
+							url: `https://docs.google.com/document/d/${doc.id}/edit`,
+						});
+					}
+				}
+			}
+
+			return {
+				results,
+				paginationToken: response?.nextPageToken,
+			};
+		} catch (error) {
+			return { results: [] };
 		}
 	},
 };

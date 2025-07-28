@@ -142,8 +142,10 @@ export interface DocumentCreationResult {
 	documentId: string;
 	documentUrl: string;
 	title: string;
-	driveId: string;
-	folderId: string;
-	folderName: string;
+	driveId?: string;
+	folderId?: string;
+	folderName?: string;
+	templateFolderId?: string;
+	templateDocumentId?: string;
 	message: string;
 }

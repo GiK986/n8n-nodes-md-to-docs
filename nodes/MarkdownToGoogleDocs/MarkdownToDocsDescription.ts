@@ -215,6 +215,142 @@ const createDocumentOperation: INodeProperties[] = [
 		],
 		description: 'The folder where to create the document',
 	},
+	{
+		displayName: 'Use Template',
+		name: 'useTemplate',
+		type: 'boolean',
+		default: false,
+		displayOptions: {
+			show: {
+				operation: ['createDocument'],
+			},
+		},
+		description: 'Whether to use a Google Docs template to create the document',
+	},
+	{
+		displayName: 'Template Folder',
+		name: 'templateFolderId',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		displayOptions: {
+			show: {
+				operation: ['createDocument'],
+				useTemplate: [true],
+			},
+		},
+		modes: [
+			{
+				displayName: 'Folder',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a template folder...',
+				typeOptions: {
+					searchListMethod: 'getFolders',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'Link',
+				name: 'url',
+				type: 'string',
+				placeholder:
+					'e.g. https://drive.google.com/drive/folders/1Tx9WHbA3wBpPB4C_HcoZDH9WZFWYxAMU',
+				extractValue: {
+					type: 'regex',
+					regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+				},
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+							errorMessage: 'Not a valid Google Drive Folder URL',
+						},
+					},
+				],
+			},
+			{
+				displayName: 'ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 1anGBg0b5re2VtF2bKu201_a-Vnz5BHq9Y4r-yBDAj5A',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '[a-zA-Z0-9\\-_]{2,}',
+							errorMessage: 'Not a valid Google Drive Folder ID',
+						},
+					},
+				],
+				url: '=https://drive.google.com/drive/folders/{{$value}}',
+			},
+		],
+		description: 'The folder containing Google Docs templates',
+	},
+	{
+		displayName: 'Template Document',
+		name: 'templateDocumentId',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		displayOptions: {
+			show: {
+				operation: ['createDocument'],
+				useTemplate: [true],
+			},
+		},
+		modes: [
+			{
+				displayName: 'Document',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a template document...',
+				typeOptions: {
+					searchListMethod: 'getTemplateDocuments',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'Link',
+				name: 'url',
+				type: 'string',
+				placeholder:
+					'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
+				extractValue: {
+					type: 'regex',
+					regex: GOOGLE_DRIVE_FOLDER_URL_REGEX, // Assuming template doc URL is similar to folder
+				},
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+							errorMessage: 'Not a valid Google Doc URL',
+						},
+					},
+				],
+			},
+			{
+				displayName: 'ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '[a-zA-Z0-9\\-_]{10,}',
+							errorMessage: 'Not a valid Google Doc ID',
+						},
+					},
+				],
+				url: '=https://docs.google.com/document/d/{{$value}}/edit',
+			},
+		],
+		description: 'The Google Docs template to use',
+	},
 ];
 
 // Properties for testCredentials operation

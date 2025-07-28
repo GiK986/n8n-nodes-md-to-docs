@@ -1,10 +1,11 @@
-import type {
+import {
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeConnectionType,
 } from 'n8n-workflow';
-import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
 
 import { markdownToDocsFields, markdownToDocsOperations } from './MarkdownToDocsDescription';
 import { resourceLocatorMethods } from './resource-locators';
@@ -83,6 +84,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 					case 'createDocument':
 						const driveParam = this.getNodeParameter('driveId', itemIndex) as any;
 						const folderParam = this.getNodeParameter('folderId', itemIndex) as any;
+						const useTemplate = this.getNodeParameter('useTemplate', itemIndex, false) as boolean;
 
 						const driveId =
 							typeof driveParam === 'object' ? driveParam.value : driveParam || 'My Drive';
@@ -95,6 +97,18 @@ export class MarkdownToGoogleDocs implements INodeType {
 									? 'My Drive'
 									: folderParam;
 
+						let templateDocumentId: string | undefined;
+						if (useTemplate) {
+							const templateDocumentParam = this.getNodeParameter(
+								'templateDocumentId',
+								itemIndex,
+							) as any;
+							templateDocumentId =
+								typeof templateDocumentParam === 'object'
+									? templateDocumentParam.value
+									: templateDocumentParam;
+						}
+
 						result = await GoogleDocsAPI.createGoogleDocsDocumentWithAPI(
 							this,
 							markdownInput,
@@ -102,6 +116,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 							driveId,
 							folderId,
 							folderName,
+							templateDocumentId,
 						);
 						break;
 

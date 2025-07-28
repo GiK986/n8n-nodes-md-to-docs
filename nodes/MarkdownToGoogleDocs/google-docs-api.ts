@@ -11,85 +11,100 @@ export class GoogleDocsAPI {
 		driveId: string,
 		folderId: string,
 		folderName?: string,
+		templateDocumentId?: string,
 	): Promise<DocumentCreationResult> {
 		try {
-			// Try using Google Drive API first (more efficient), fallback to Docs API + move if it fails
 			let documentId: string;
 
-			try {
-				// Method 1: Create document directly in folder using Google Drive API
-				const createDocumentRequest = {
-					name: documentTitle,
-					mimeType: 'application/vnd.google-apps.document',
-					...(folderId && folderId !== 'root' ? { parents: [folderId] } : {}),
-				};
-
-				const documentResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+			if (templateDocumentId) {
+				// Use template
+				const copyResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
 					'googleDocsOAuth2Api',
 					{
 						method: 'POST' as IHttpRequestMethods,
-						url: 'https://www.googleapis.com/drive/v3/files',
-						body: createDocumentRequest,
+						url: `https://www.googleapis.com/drive/v3/files/${templateDocumentId}/copy`,
+						body: {
+							name: documentTitle,
+							parents: [folderId],
+						},
 						headers: {
 							'Content-Type': 'application/json',
 						},
 					},
 				);
+				documentId = copyResponse.id;
 
-				documentId = documentResponse.id;
-				executeFunctions.logger.info('Document created successfully using Google Drive API');
-			} catch (driveError) {
-				executeFunctions.logger.warn('Drive API failed, falling back to Docs API + move:', {
-					error: driveError.message,
-					status: driveError.response?.status,
-				});
-
-				// Method 2: Fallback - Create with Docs API then move if needed
-				const createDocumentRequest = {
-					title: documentTitle,
-				};
-
-				const documentResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+				// Clear the copied document's body
+				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
 					'googleDocsOAuth2Api',
 					{
-						method: 'POST' as IHttpRequestMethods,
-						url: 'https://docs.googleapis.com/v1/documents',
-						body: createDocumentRequest,
-						headers: {
-							'Content-Type': 'application/json',
-						},
+						method: 'GET' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}`,
 					},
 				);
 
-				documentId = documentResponse.documentId;
+				const content = doc.body.content;
+				if (content && content.length > 2) {
+					const requests = [
+						{
+							deleteContentRange: {
+								range: {
+									startIndex: 1,
+									endIndex: content[content.length - 1].endIndex - 1,
+								},
+							},
+						},
+					];
 
-				// Move document to the specified folder (if not root)
-				if (folderId !== 'root') {
 					await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
 						'googleDocsOAuth2Api',
 						{
-							method: 'PATCH' as IHttpRequestMethods,
-							url: `https://www.googleapis.com/drive/v3/files/${documentId}`,
-							body: {
-								parents: [folderId],
-							},
+							method: 'POST' as IHttpRequestMethods,
+							url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+							body: { requests },
 							headers: {
 								'Content-Type': 'application/json',
 							},
 						},
 					);
 				}
-				executeFunctions.logger.info('Document created using Docs API and moved to folder');
+			} else {
+				// Create a new blank document
+				try {
+					const createDocumentRequest = {
+						name: documentTitle,
+						mimeType: 'application/vnd.google-apps.document',
+						...(folderId && folderId !== 'root' ? { parents: [folderId] } : {}),
+					};
+
+					const documentResponse =
+						await executeFunctions.helpers.httpRequestWithAuthentication.call(
+							executeFunctions,
+							'googleDocsOAuth2Api',
+							{
+								method: 'POST' as IHttpRequestMethods,
+								url: 'https://www.googleapis.com/drive/v3/files',
+								body: createDocumentRequest,
+								headers: {
+									'Content-Type': 'application/json',
+								},
+							},
+						);
+					documentId = documentResponse.id;
+					executeFunctions.logger.info('Document created successfully using Google Drive API');
+				} catch (error) {
+					throw new NodeOperationError(executeFunctions.getNode(), error);
+				}
 			}
 
-			// Use provided folder name or fallback to fetching it
 			let finalFolderName = folderName || 'My Drive';
+
 			if (!folderName && folderId !== 'root') {
 				try {
-					// Try to get folder name via API (e.g., when folder was entered via URL or legacy data)
+					// Try to get folder name via API
 					const folderResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
 						'googleDocsOAuth2Api',
@@ -102,15 +117,12 @@ export class GoogleDocsAPI {
 						},
 					);
 					finalFolderName = folderResponse.name;
-					executeFunctions.logger.info('Fetched folder name via API:', {
-						folderName: finalFolderName,
-					});
 				} catch (folderError) {
 					executeFunctions.logger.warn('Could not fetch folder name, using folder ID:', {
 						folderId,
 						error: folderError.message,
 					});
-					finalFolderName = folderId; // Fallback to folder ID if name can't be retrieved
+					finalFolderName = folderId; // Fallback to folder ID
 				}
 			}
 
@@ -147,56 +159,7 @@ export class GoogleDocsAPI {
 				message: `Document "${documentTitle}" has been created in folder "${finalFolderName}".`,
 			};
 		} catch (error) {
-			// More detailed error handling with better diagnostics
-			if (error.response?.status === 403) {
-				const errorDetails = error.response?.data?.error;
-				let detailedMessage = `Failed to create Google Docs document: Access forbidden (403).\n\n`;
-
-				if (errorDetails?.message) {
-					detailedMessage += `API Error: ${errorDetails.message}\n\n`;
-				}
-
-				detailedMessage += `Debug info:\n`;
-				detailedMessage += `• Document title: ${documentTitle}\n`;
-				detailedMessage += `• Folder ID: ${folderId}\n`;
-				detailedMessage += `• Drive ID: ${driveId}\n\n`;
-
-				detailedMessage += `This error often occurs when:\n`;
-				detailedMessage += `1. The folder ID doesn't exist or you don't have access to it\n`;
-				detailedMessage += `2. Missing required OAuth2 scope: https://www.googleapis.com/auth/drive\n`;
-				detailedMessage += `3. The current scope https://www.googleapis.com/auth/drive.file is too restrictive\n\n`;
-
-				detailedMessage += `Required Google OAuth2 scopes:\n`;
-				detailedMessage += `• https://www.googleapis.com/auth/documents\n`;
-				detailedMessage += `• https://www.googleapis.com/auth/drive (instead of drive.file)\n\n`;
-				detailedMessage += `Please check:\n`;
-				detailedMessage += `1. Your OAuth2 credentials are properly configured\n`;
-				detailedMessage += `2. The required scopes are enabled in your Google Cloud Console\n`;
-				detailedMessage += `3. The folder ID is correct and accessible`;
-
-				throw new NodeOperationError(executeFunctions.getNode(), detailedMessage);
-			} else if (error.response?.status === 401) {
-				throw new NodeOperationError(
-					executeFunctions.getNode(),
-					`Failed to create Google Docs document: Unauthorized (401).\nPlease reconnect your Google OAuth2 credentials or check if they have expired.`,
-				);
-			} else if (error.response?.status === 404) {
-				throw new NodeOperationError(
-					executeFunctions.getNode(),
-					`Failed to create Google Docs document: Not Found (404).\nThe requested folder or drive may not exist or you don't have access to it.`,
-				);
-			} else {
-				const errorMessage =
-					error.response?.data?.error?.message ||
-					error.message ||
-					error.response?.statusText ||
-					'Unknown error';
-				const statusCode = error.response?.status || 'Unknown';
-				throw new NodeOperationError(
-					executeFunctions.getNode(),
-					`Failed to create Google Docs document: ${errorMessage} (Status: ${statusCode})`,
-				);
-			}
+			throw new NodeOperationError(executeFunctions.getNode(), error);
 		}
 	}
 
