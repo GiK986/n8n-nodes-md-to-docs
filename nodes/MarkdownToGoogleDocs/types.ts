@@ -53,6 +53,10 @@ export interface GoogleDocsRequest {
 				listId: string;
 				nestingLevel?: number;
 			};
+			indentFirstLine?: {
+				magnitude: number;
+				unit: string;
+			};
 			indentStart?: {
 				magnitude: number;
 				unit: string;
@@ -114,6 +118,12 @@ export interface GoogleDocsRequest {
 			endIndex: number;
 		};
 		bulletPreset: string;
+	};
+	deleteParagraphBullets?: {
+		range: {
+			startIndex: number;
+			endIndex: number;
+		};
 	};
 	insertTable?: {
 		location?: { index: number };

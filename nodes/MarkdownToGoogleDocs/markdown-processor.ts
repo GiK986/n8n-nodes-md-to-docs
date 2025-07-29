@@ -463,119 +463,107 @@ export class MarkdownProcessor {
 		const requests: GoogleDocsRequest[] = [];
 		let currentIndex = insertIndex;
 
-		// Process list items recursively to handle nesting
 		const processedData = this.processListItemsRecursively(element, 0, bulletPreset);
 
-		// Store formatting data to apply AFTER createParagraphBullets
-		const formattingData: Array<{
-			range: { start: number; end: number; type: string; url?: string };
-			itemStartIndex: number; // Start of the item WITH tabs
-			itemLevel: number; // Number of tabs that will be removed
-		}> = [];
-
-		// adding a newline before the list
-		requests.push({
-			insertText: {
-				location: { index: insertIndex },
-				text: '\n', // Add a newline before the list
-			},
-		});
-		// Move index after the newline
-		currentIndex += 1;
-
-		// Insert all text content with leading tabs for nesting levels
-		// Google Docs API determines nesting by counting leading tabs
-		for (const item of processedData.items) {
-			// Add leading tabs based on nesting level for Google Docs API
-			const leadingTabs = '\t'.repeat(item.level);
-			const textWithTabs = leadingTabs + item.text;
-
-			requests.push({
-				insertText: {
-					location: { index: currentIndex },
-					text: textWithTabs + '\n',
-				},
-			});
-
-			// Store formatting data for later application (AFTER createParagraphBullets)
-			for (const range of item.formatRanges) {
-				formattingData.push({
-					range: {
-						start: range.start, // Keep original range (relative to item text WITHOUT tabs)
-						end: range.end, // Keep original range (relative to item text WITHOUT tabs)
-						type: range.type,
-						url: range.url,
-					},
-					itemStartIndex: currentIndex, // Start of the item (WITH tabs)
-					itemLevel: item.level, // Number of tabs that will be removed from this item
-				});
-			}
-
-			currentIndex += textWithTabs.length + 1; // +1 for newline
+		if (processedData.items.length === 0) {
+			return requests;
 		}
 
-		// Apply bullet formatting with proper nesting levels using Google Docs standard
-		if (processedData.items.length > 0) {
-			// Calculate the actual end index of the list content (without extra newline)
-			const listStartIndex = insertIndex + 1; // Start after the initial newline
-			const listEndIndex = currentIndex - 1; // End of actual list content
+		// Phase 1: Insert all text and gather metadata
+		const lineMetadata: Array<{
+			line: {
+				text: string;
+				isPrimary: boolean;
+				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			};
+			level: number;
+			startIndex: number;
+			textToInsert: string;
+		}> = [];
 
-			// First, create the paragraph bullets for the entire list
-			// Note: This will remove the leading tabs and change indices of subsequent text
-			requests.push({
-				createParagraphBullets: {
-					range: {
-						startIndex: listStartIndex,
-						endIndex: listEndIndex,
-					},
-					bulletPreset,
-				},
-			});
+		let fullTextToInsert = '';
+		let initialListIndex = currentIndex;
 
-			// Now apply all inline formatting AFTER createParagraphBullets
-			for (const formatData of formattingData) {
-				// Simple adjustment: only account for tabs removed from this specific item
-				// The range is relative to text WITHOUT tabs, so adjust the base position
+		// Add a newline before the list to ensure proper separation
+		requests.push({ insertText: { location: { index: currentIndex }, text: '\n' } });
+		currentIndex++;
+		initialListIndex++;
 
-				// Calculate how many tabs were removed before this item's position
-				let totalTabsRemovedBefore = 0;
-				let currentItemPos = insertIndex + 1; // Start after initial newline
+		for (const item of processedData.items) {
+			for (const line of item.lines) {
+				const leadingTabs = line.isPrimary ? '\t'.repeat(item.level) : '';
+				const textToInsert = leadingTabs + line.text;
+				const lineTextForRequest = textToInsert + '\n';
 
-				for (const item of processedData.items) {
-					const itemWithTabs = '\t'.repeat(item.level) + item.text;
+				lineMetadata.push({
+					line,
+					level: item.level,
+					startIndex: currentIndex,
+					textToInsert: textToInsert,
+				});
 
-					if (currentItemPos === formatData.itemStartIndex) {
-						// Found our target item, stop counting
-						break;
-					} else if (currentItemPos < formatData.itemStartIndex) {
-						// This item comes before our target, count its tabs
-						totalTabsRemovedBefore += item.level;
-					}
+				fullTextToInsert += lineTextForRequest;
+				currentIndex += lineTextForRequest.length;
+			}
+		}
 
-					currentItemPos += itemWithTabs.length + 1; // +1 for newline
-				}
+		requests.push({
+			insertText: { location: { index: initialListIndex }, text: fullTextToInsert },
+		});
 
-				// Adjust the item start position by removing tabs from previous items
-				const adjustedItemStart = formatData.itemStartIndex - totalTabsRemovedBefore;
+		// Phase 2: Create bullets for the entire list block
+		const listEndIndex = initialListIndex + fullTextToInsert.length - 1; // Exclude final newline
+		requests.push({
+			createParagraphBullets: {
+				range: { startIndex: initialListIndex, endIndex: listEndIndex },
+				bulletPreset,
+			},
+		});
 
-				// Use the original range without further adjustment
-				const formatRequest = this.createFormatRequest(formatData.range, adjustedItemStart);
+		// Phase 3: Apply corrections and inline formatting
+		let totalTabsRemoved = 0;
+		for (const meta of lineMetadata) {
+			const adjustedStartIndex = meta.startIndex - totalTabsRemoved;
+			const adjustedEndIndex = adjustedStartIndex + meta.textToInsert.length;
+
+			// Apply inline formatting first
+			for (const range of meta.line.formatRanges) {
+				const formatRequest = this.createFormatRequest(range, adjustedStartIndex);
 				if (formatRequest) {
 					requests.push(formatRequest);
 				}
 			}
+
+			if (!meta.line.isPrimary) {
+				// This is a secondary line, remove its bullet and apply indentation
+				requests.push({
+					deleteParagraphBullets: {
+						range: { startIndex: adjustedStartIndex, endIndex: adjustedEndIndex },
+					},
+				});
+
+				requests.push({
+					updateParagraphStyle: {
+						range: { startIndex: adjustedStartIndex, endIndex: adjustedEndIndex },
+						paragraphStyle: {
+							indentStart: { magnitude: 36 * (meta.level + 1), unit: 'PT' },
+							indentFirstLine: { magnitude: 36 * (meta.level + 1), unit: 'PT' },
+						},
+						fields: 'indentStart,indentFirstLine',
+					},
+				});
+			}
+
+			if (meta.line.isPrimary) {
+				totalTabsRemoved += meta.level;
+			}
 		}
 
-		// Add extra line break after the list (AFTER createParagraphBullets)
-		// Calculate the correct position after all tabs are removed
-		// The list ends at listEndIndex (which is currentIndex - 1)
-		// After createParagraphBullets, tabs are removed, so we need to adjust
-		const tabsRemoved = processedData.items.reduce((total, item) => total + item.level, 0);
-		const adjustedEndIndex = currentIndex - 1 - tabsRemoved; // listEndIndex after tab removal
-
+		// Add a final newline for separation after the list
+		const finalEndIndex = listEndIndex - totalTabsRemoved;
 		requests.push({
 			insertText: {
-				location: { index: adjustedEndIndex + 1 }, // Insert after the adjusted list end
+				location: { index: finalEndIndex + 1 },
 				text: '\n',
 			},
 		});
@@ -592,15 +580,21 @@ export class MarkdownProcessor {
 		bulletPreset?: string,
 	): {
 		items: Array<{
-			text: string;
 			level: number;
-			formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			lines: Array<{
+				text: string;
+				isPrimary: boolean;
+				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			}>;
 		}>;
 	} {
 		const items: Array<{
-			text: string;
 			level: number;
-			formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			lines: Array<{
+				text: string;
+				isPrimary: boolean;
+				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			}>;
 		}> = [];
 
 		// Get direct children li elements only (not nested ones)
@@ -609,58 +603,78 @@ export class MarkdownProcessor {
 		);
 
 		for (const listItem of directListItems) {
-			const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
+			const lines: Array<{
+				text: string;
+				isPrimary: boolean;
+				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
+			}> = [];
+			let currentLineNodes: any[] = [];
+			let isPrimaryLine = true;
 
-			// Check if this is a checkbox list item
+			// Check for checkbox prefix only for primary line
 			const checkboxInput = (listItem as any).querySelector('input[type="checkbox"]');
 			let checkboxPrefix = '';
-
-			// Add Unicode checkbox symbols based on checked state
-			if (checkboxInput) {
-				// Convert checkbox to Unicode checkbox symbols based on checked state
+			if (checkboxInput && bulletPreset === 'BULLET_CHECKBOX') {
 				checkboxPrefix = checkboxInput.checked ? '✅ ' : '❌ ';
 			}
 
-			// Extract text content from this list item (excluding nested lists)
-			// Process ALL child nodes together to maintain proper formatting positions
 			const nonNestedChildren = Array.from((listItem as any).childNodes).filter(
 				(child: any) => (child as any).nodeName !== 'UL' && (child as any).nodeName !== 'OL',
 			);
 
-			// Process all non-nested children together like in processParagraphWithInlineFormatting
-			let itemText = this.processChildNodes(nonNestedChildren, formatRanges);
-
-			// Trim the text and adjust format ranges accordingly
-			const trimmedText = itemText.trim();
-			const leadingSpaces = itemText.length - itemText.trimStart().length;
-
-			// Adjust all format ranges to account for removed leading spaces
-			if (leadingSpaces > 0) {
-				for (const range of formatRanges) {
-					range.start = Math.max(0, range.start - leadingSpaces);
-					range.end = Math.max(0, range.end - leadingSpaces);
+			for (const child of nonNestedChildren as Node[]) {
+				if (child.nodeName === 'BR') {
+					const formatRanges: any[] = [];
+					const text = this.processChildNodes(currentLineNodes, formatRanges);
+					if (text.trim() || lines.length > 0) {
+						const trimmedText = text.trim();
+						const leadingSpaces = text.length - text.trimStart().length;
+						if (leadingSpaces > 0) {
+							for (const range of formatRanges) {
+								range.start = Math.max(0, range.start - leadingSpaces);
+								range.end = Math.max(0, range.end - leadingSpaces);
+							}
+						}
+						lines.push({ text: trimmedText, isPrimary: isPrimaryLine, formatRanges });
+					}
+					currentLineNodes = [];
+					isPrimaryLine = false;
+				} else {
+					currentLineNodes.push(child);
 				}
 			}
 
-			// Add checkbox prefix if this is a checkbox item and we're not using native checkboxes
-			if (checkboxPrefix) {
-				itemText = checkboxPrefix + trimmedText;
+			if (currentLineNodes.length > 0) {
+				const formatRanges: any[] = [];
+				const text = this.processChildNodes(currentLineNodes, formatRanges);
+				if (text.trim()) {
+					const trimmedText = text.trim();
+					const leadingSpaces = text.length - text.trimStart().length;
+					if (leadingSpaces > 0) {
+						for (const range of formatRanges) {
+							range.start = Math.max(0, range.start - leadingSpaces);
+							range.end = Math.max(0, range.end - leadingSpaces);
+						}
+					}
+					lines.push({ text: trimmedText, isPrimary: isPrimaryLine, formatRanges });
+				}
+			}
 
-				// Adjust all format ranges to account for the checkbox prefix
-				for (const range of formatRanges) {
+			// Prepend checkbox prefix to the first line if it exists
+			if (checkboxPrefix && lines.length > 0) {
+				lines[0].text = checkboxPrefix + lines[0].text;
+				for (const range of lines[0].formatRanges) {
 					range.start += checkboxPrefix.length;
 					range.end += checkboxPrefix.length;
 				}
-			} else {
-				itemText = trimmedText;
 			}
 
-			// Add this item
-			items.push({
-				text: itemText,
-				level: level,
-				formatRanges: formatRanges,
-			});
+			if (lines.length > 0) {
+				items.push({
+					level: level,
+					lines: lines,
+				});
+			}
 
 			// Process nested lists
 			const nestedLists = Array.from((listItem as any).children).filter(
