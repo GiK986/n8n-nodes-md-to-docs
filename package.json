@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-md-to-docs",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Transform Markdown content into Google Docs API requests, enabling seamless integration within n8n workflows.",
 	"keywords": [
 		"n8n-community-node-package"

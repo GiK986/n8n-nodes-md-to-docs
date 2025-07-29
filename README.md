@@ -190,7 +190,7 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 | `# Headers` | Styled headings (H1-H6) | ✅ |
 | `**bold**` / `*italic*` | Text formatting + nested combinations | ✅ |
 | `[links](url)` | Hyperlinks in any context | ✅ |
-| `- lists` / `1. lists` | Bulleted/numbered with unlimited nesting | ✅ |
+| `- lists` / `1. lists` | Bulleted/numbered with unlimited nesting and multi-line items | ✅ |
 | `- [x]` / `- [ ]` | Native Google Docs checkboxes | ✅ |
 | `` `code` `` | Monospace formatting + syntax highlighting | ✅ |
 | `\| tables \|` | Structured tables with header styling | ✅ |
@@ -349,6 +349,7 @@ npm link n8n-nodes-md-to-docs
 - [x] **Checkbox Lists**: Native Google Docs checkboxes for `- [x]` and `- [ ]` syntax with proper checked/unchecked states
 - [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
 - [x] **Template System**: Create documents from a template, preserving headers and footers. Select a template from any folder in your Google Drive.
+- [x] **Enhanced List Support**: Flawless rendering of multi-line and deeply nested list items with accurate inline formatting.
 
 🚀 **Future Enhancements**
 
