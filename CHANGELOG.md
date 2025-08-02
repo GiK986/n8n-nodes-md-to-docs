@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-08-01
+
+### ⚠️ Breaking Changes
+
+- **UI Overhaul for Templates**: The node's UI for handling templates has been redesigned to support the new placeholder system.
+  - The `useTemplate` toggle has been **removed**. Template usage is now enabled by adding "Template Settings" from the new `Additional Options` menu.
+  - The `templateFolderId` and `templateDocumentId` fields have been **moved** inside the new "Template Settings" group.
+  - **Action Required**: Workflows using the old template system **must be reconfigured** to use the new `Additional Options` structure.
+
+### Added
+
+- **Text Placeholder Support**: Added support for replacing text placeholders within the template.
+  - Replaces text placeholders like `{{key}}` anywhere in a template (header, footer, body) by providing a corresponding key-value pair in the `placeholderData` field.
+  - Supports n8n expressions for on-the-fly value generation.
+- **Conditional Markdown Injection**:
+  - A `useMarkdownInput` toggle now controls whether the Markdown content is injected into the document.
+  - An optional `mainContentPlaceholder` field allows injecting Markdown at a specific location (e.g., `{{MainContent}}`) within the template body.
+- **UI Enhancements**:
+  - Added a `notice` to warn users when the `markdownInput` field is empty but might be required.
+  - Improved hints and placeholder examples for a better user experience.
+
+### Changed
+
+- **New UI Structure**: All optional features (Templates, Placeholders) are now grouped under a single, cleaner `Additional Options` collection. This simplifies the main interface and progressively discloses complexity.
+
 ## [0.2.1] - 2025-07-28
 
 ### Fixed
@@ -21,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `templateDocumentId` dropdown to select the specific template document from the chosen folder.
 
 ## [0.1.1] - 2025-07-20
-
+<!-- markdownlint-disable MD024 -->
 ### Fixed
 
 - Fixed BR tag conversion to newlines in Google Docs
@@ -57,7 +82,7 @@ Email: info@example.com
 - Support for paragraphs with inline formatting (bold, italic, links)
 - Support for unordered and ordered lists with nesting
 - Support for tables with formatting
-- Support for blockquotes
+- Support for blockquote
 - Support for code blocks
 - Support for horizontal rules
 - Support for images with fallback text

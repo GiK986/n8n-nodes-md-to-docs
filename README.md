@@ -121,13 +121,13 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 
 ### 🚀 Quick Start
 
-1. **Add the "Markdown to Google Docs" node** to your workflow
-2. **Input your Markdown content** in the text area  
-3. **Choose operation**:
-   - **"Create Document"** - Direct document creation (recommended)
-   - **"Convert to API Requests"** - Get JSON for HTTP Request node
-4. **Configure document title** and output format
-5. **Execute** - The node handles the Google Docs API calls
+1. **Add the "Markdown to Google Docs" node** to your workflow.
+2. **Select the "Create Document" operation** (this is the default).
+3. **Choose your Google Drive and destination Folder** where the document will be created.
+4. **Set a Title** for your new document.
+5. **Input your Markdown content** in the text area.
+6. **(Optional) Use "Additional Options"** to create a document from a template or use placeholders.
+7. **Execute the node!** Your document will be created in the specified location.
 
 **Pro tip:** Supports advanced formatting, images (via public URLs), tables, checkboxes, and even deep list nesting.
 
@@ -137,23 +137,35 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 
 ### 🎯 Key Features
 
-**✨ Core Capabilities:**
+**✨ Core Capabilities**:
 
 - Full Markdown to Google Docs conversion
 - Headers, bold/italic, links, lists, code blocks
 - Multiple output formats (single/multiple requests)
 - AI Agent Tool compatibility (`usableAsTool: true`)
 
-**🚀 Advanced Features:**
+**🚀 Advanced Features**:
 
 - **Nested Formatting**: Complex combinations like **bold and *italic* together**
 - **Smart Tables**: Header styling (bold + centered) with full cell formatting
 - **Deep Nesting**: Unlimited list levels with proper indentation
-- **Precise Positioning**: Accurate text range calculations for Google Docs API
 - **Image Embedding**: Direct URL-based image insertion with optional sizing
 - **Checkbox Lists**: Native Google Docs checkboxes for task lists
+- **Precise Positioning**: Accurate text range calculations for Google Docs API
 
-**📋 Image Support Notes:**
+**✨ Template and Text Placeholder System**:
+
+- **Use Any Doc as a Template**: Select any Google Doc from your Drive to use as a template. The node preserves headers and footers, only replacing the body content.
+- **Dynamic Text Placeholder Replacement**:
+  - Use text placeholders like `{{key}}` anywhere in your template (headers, footers, body).
+  - Provide a JSON object with corresponding key-value pairs (e.g., `{ "key": "Your Value" }`) to replace them dynamically.
+  - Supports n8n expressions for generating values on the fly.
+- **Smart Markdown Injection**:
+  - By default, your Markdown input replaces the entire body of the template.
+  - Optionally, specify a "Main Content Placeholder" (e.g., `{{MainContent}}`) in your template body. The node will replace only this specific placeholder with your rendered Markdown.
+  - The Markdown input can be disabled entirely if you only need to replace simple placeholders.
+
+**📋 Image Support Notes**:
 
 - ✅ **URL-based images**: Direct embedding from public URLs (`![alt](https://example.com/image.png)`)
 - ✅ **Optional sizing**: Width/height attributes supported
@@ -185,18 +197,18 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 
 ### ✅ Supported Elements
 
-| Element | Google Docs Output | Status |
-|---------|-------------------|--------|
-| `# Headers` | Styled headings (H1-H6) | ✅ |
-| `**bold**` / `*italic*` | Text formatting + nested combinations | ✅ |
-| `[links](url)` | Hyperlinks in any context | ✅ |
-| `- lists` / `1. lists` | Bulleted/numbered with unlimited nesting and multi-line items | ✅ |
-| `- [x]` / `- [ ]` | Native Google Docs checkboxes | ✅ |
-| `` `code` `` | Monospace formatting + syntax highlighting | ✅ |
-| `\| tables \|` | Structured tables with header styling | ✅ |
-| `> quotes` | Indented blockquotes with internal formatting | ✅ |
-| `---` | Horizontal rules | ✅ |
-| `![images](url)` | Embedded images (URL only) | ✅ |
+| Element                 | Google Docs Output                                            | Status |
+| ----------------------- | ------------------------------------------------------------- | ------ |
+| `# Headers`             | Styled headings (H1-H6)                                       | ✅      |
+| `**bold**` / `*italic*` | Text formatting + nested combinations                         | ✅      |
+| `[links](url)`          | Hyperlinks in any context                                     | ✅      |
+| `- lists` / `1. lists`  | Bulleted/numbered with unlimited nesting and multi-line items | ✅      |
+| `- [x]` / `- [ ]`       | Native Google Docs checkboxes                                 | ✅      |
+| `` `code` ``            | Monospace formatting + syntax highlighting                    | ✅      |
+| `\| tables \|`          | Structured tables with header styling                         | ✅      |
+| `> quotes`              | Indented blockquote with internal formatting                  | ✅      |
+| `---`                   | Horizontal rules                                              | ✅      |
+| `![images](url)`        | Embedded images (URL only)                                    | ✅      |
 
 ---
 
@@ -279,15 +291,29 @@ console.log(greeting);
 
 ## ⚙️ Configuration Options
 
-| Parameter       | Type    | Description                                |
-| --------------- | ------- | ------------------------------------------ |
-| `markdownInput` | string  | The Markdown content to convert            |
-| `documentTitle` | string  | Title for the Google Docs document         |
-| `operation`     | options | "convertToApiRequests" or "createDocument" |
+### Main Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `operation` | options | "convertToApiRequests" or "createDocument" |
+| `driveId` | resourceLocator | The Google Drive to create the document in. |
+| `folderId` | resourceLocator | The folder within the selected drive. |
+| `documentTitle` | string | Title for the Google Docs document |
+| `markdownInput` | string | The Markdown content to convert |
 | `outputFormat`  | options | "single" or "multiple" request format      |
-| `useTemplate` | boolean | Whether to use a Google Docs template for creation |
-| `templateFolderId` | resourceLocator | The folder containing the template documents |
-| `templateDocumentId` | resourceLocator | The specific template document to use |
+
+### Advanced Options (`additionalOptions`)
+
+The `additionalOptions` parameter provides access to advanced features like templates and placeholders. When you add options, you can configure the following nested structure:
+
+- **`templateSettings`** (`fixedCollection`): Enables creation from a template.
+  - **`templateFolderId`** (`resourceLocator`): The folder containing the Google Docs templates.
+  - **`templateDocumentId`** (`resourceLocator`): The specific template document to use.
+  - **`placeholders`** (`collection`): Enables placeholder replacement within the selected template.
+    - **`placeholderSettings`** (`fixedCollection`): Contains settings for placeholder data and Markdown injection.
+      - **`placeholderData`** (`json`): A JSON object of key-value pairs for placeholders (e.g., `{ "key": "value" }`).
+      - **`useMarkdownInput`** (`boolean`): Whether to use the Markdown content. If disabled, the node only replaces placeholders.
+      - **`mainContentPlaceholder`** (`string`): The specific placeholder (e.g., `{{MainContent}}`) to be replaced by the Markdown content. If not specified, the entire document body is replaced.
 
 ---
 
@@ -348,7 +374,7 @@ npm link n8n-nodes-md-to-docs
 - [x] **Direct Integration**: One-click document creation with `createDocument` operation - no HTTP Request node needed
 - [x] **Checkbox Lists**: Native Google Docs checkboxes for `- [x]` and `- [ ]` syntax with proper checked/unchecked states
 - [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
-- [x] **Template System**: Create documents from a template, preserving headers and footers. Select a template from any folder in your Google Drive.
+- [x] **Template and Text Placeholder System**: Create documents from a template, preserving headers/footers and replacing dynamic text `{{placeholders}}`.
 - [x] **Enhanced List Support**: Flawless rendering of multi-line and deeply nested list items with accurate inline formatting.
 
 🚀 **Future Enhancements**

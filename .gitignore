@@ -9,3 +9,4 @@ yarn.lock
 memory.json
 .vscode/mcp.json
 .vscode/rules/
+.vscode/settings.json

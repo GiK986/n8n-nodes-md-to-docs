@@ -37,7 +37,7 @@ Visit [Google](https://google.com) for searching.
 Here's a link to [n8n documentation](https://docs.n8n.io) for workflow automation.
 
 ### Headers Structure
-
+<!-- markdownlint-disable MD025 -->
 # Header 1 - Main Title
 
 ## Header 2 - Section
@@ -106,7 +106,7 @@ Here's a link to [n8n documentation](https://docs.n8n.io) for workflow automatio
 
 ## 💬 Section 4: Quotes and Code Blocks
 
-### Blockquotes
+### Blockquote
 
 simple
 
