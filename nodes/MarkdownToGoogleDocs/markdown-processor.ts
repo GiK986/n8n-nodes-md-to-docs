@@ -12,7 +12,7 @@ export class MarkdownProcessor {
 		markdownInput: string,
 		documentTitle: string,
 		outputFormat: string,
-		apiReadyFormat: boolean = false,
+		initialInsertIndex: number = 1,
 	): ConversionResult {
 		// Fix escaped characters from n8n
 		const cleanMarkdown = markdownInput.replace('\`', '`');
@@ -23,7 +23,7 @@ export class MarkdownProcessor {
 		const document = dom.window.document;
 
 		const requests: GoogleDocsRequest[] = [];
-		let insertIndex = 1; // Start after document title
+		let insertIndex = initialInsertIndex;
 
 		// Process HTML elements
 		const elements = document.body.childNodes;

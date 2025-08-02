@@ -170,7 +170,10 @@ export const resourceLocatorMethods = {
 
 			let folderId = '';
 			try {
-				const folderParam = this.getNodeParameter('templateFolderId', 0);
+				const folderParam = this.getNodeParameter(
+					'additionalOptions.templateSettings.values.templateFolderId',
+					0,
+				);
 				if (folderParam && typeof folderParam === 'object' && 'value' in folderParam) {
 					folderId = (folderParam as any).value;
 				} else if (typeof folderParam === 'string') {

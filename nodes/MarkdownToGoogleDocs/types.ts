@@ -125,11 +125,42 @@ export interface GoogleDocsRequest {
 			endIndex: number;
 		};
 	};
+	replaceAllText?: {
+		replaceText: string;
+		containsText: {
+			text: string;
+			matchCase: boolean;
+		};
+	};
+	deleteContentRange?: {
+		range: {
+			startIndex: number;
+			endIndex: number;
+		};
+	};
 	insertTable?: {
 		location?: { index: number };
 		endOfSegmentLocation?: { segmentId: string };
 		rows: number;
 		columns: number;
+	};
+}
+
+export interface IAdditionalOptions {
+	templateSettings?: {
+		values: {
+			templateFolderId?: string;
+			templateDocumentId?: string;
+			placeholders?: {
+				placeholderSettings?: {
+					values: {
+						placeholderData?: string | object;
+						useMarkdownInput?: boolean;
+						mainContentPlaceholder?: string;
+					};
+				};
+			};
+		};
 	};
 }
 

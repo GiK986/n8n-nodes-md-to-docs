@@ -11,6 +11,7 @@ import { markdownToDocsFields, markdownToDocsOperations } from './MarkdownToDocs
 import { resourceLocatorMethods } from './resource-locators';
 import { MarkdownProcessor } from './markdown-processor';
 import { GoogleDocsAPI } from './google-docs-api';
+import { IAdditionalOptions } from './types';
 
 export class MarkdownToGoogleDocs implements INodeType {
 	description: INodeTypeDescription = {
@@ -58,15 +59,8 @@ export class MarkdownToGoogleDocs implements INodeType {
 				let documentTitle = '';
 
 				if (operation !== 'testCredentials') {
-					markdownInput = this.getNodeParameter('markdownInput', itemIndex) as string;
+					markdownInput = this.getNodeParameter('markdownInput', itemIndex, '') as string;
 					documentTitle = this.getNodeParameter('documentTitle', itemIndex) as string;
-
-					// Markdown input is required for all operations except testCredentials
-					if (!markdownInput.trim()) {
-						throw new NodeOperationError(this.getNode(), 'Markdown input is required', {
-							itemIndex,
-						});
-					}
 				}
 
 				let result: any;
@@ -84,7 +78,71 @@ export class MarkdownToGoogleDocs implements INodeType {
 					case 'createDocument':
 						const driveParam = this.getNodeParameter('driveId', itemIndex) as any;
 						const folderParam = this.getNodeParameter('folderId', itemIndex) as any;
-						const useTemplate = this.getNodeParameter('useTemplate', itemIndex, false) as boolean;
+
+						const additionalOptions = this.getNodeParameter(
+							'additionalOptions',
+							itemIndex,
+							{},
+						) as IAdditionalOptions;
+
+						const useTemplate = additionalOptions.templateSettings !== undefined;
+						const usePlaceholders =
+							useTemplate &&
+							additionalOptions.templateSettings?.values.placeholders?.placeholderSettings !==
+								undefined;
+
+						// By default, we assume markdown input should be used.
+						let useMarkdownInput = true;
+						// It should only NOT be used if the user explicitly disables it in the placeholder settings.
+						if (usePlaceholders) {
+							useMarkdownInput =
+								additionalOptions.templateSettings!.values.placeholders!.placeholderSettings!.values
+									.useMarkdownInput !== false;
+						}
+
+						// Markdown input validation based on new structure
+						if (!markdownInput.trim()) {
+							// Only throw error if markdown is actually needed
+							if (useMarkdownInput) {
+								throw new NodeOperationError(this.getNode(), 'Markdown input is required', {
+									itemIndex,
+								});
+							}
+						}
+
+						let templateDocumentId: string | undefined;
+						if (useTemplate) {
+							const templateDocumentParam = additionalOptions.templateSettings!.values
+								.templateDocumentId as any;
+							templateDocumentId =
+								typeof templateDocumentParam === 'object' && templateDocumentParam.value
+									? templateDocumentParam.value
+									: templateDocumentParam;
+						}
+
+						let placeholderData: string | object | undefined;
+						let mainContentPlaceholder: string | undefined;
+
+						if (usePlaceholders) {
+							placeholderData =
+								additionalOptions.templateSettings!.values.placeholders!.placeholderSettings!.values
+									.placeholderData;
+							mainContentPlaceholder =
+								additionalOptions.templateSettings!.values.placeholders!.placeholderSettings!.values
+									.mainContentPlaceholder;
+
+							if (typeof placeholderData === 'string') {
+								try {
+									placeholderData = JSON.parse(placeholderData);
+								} catch (error) {
+									throw new NodeOperationError(
+										this.getNode(),
+										`Invalid JSON in Placeholder Data: ${error.message}`,
+										{ itemIndex },
+									);
+								}
+							}
+						}
 
 						const driveId =
 							typeof driveParam === 'object' ? driveParam.value : driveParam || 'My Drive';
@@ -97,26 +155,16 @@ export class MarkdownToGoogleDocs implements INodeType {
 									? 'My Drive'
 									: folderParam;
 
-						let templateDocumentId: string | undefined;
-						if (useTemplate) {
-							const templateDocumentParam = this.getNodeParameter(
-								'templateDocumentId',
-								itemIndex,
-							) as any;
-							templateDocumentId =
-								typeof templateDocumentParam === 'object'
-									? templateDocumentParam.value
-									: templateDocumentParam;
-						}
-
 						result = await GoogleDocsAPI.createGoogleDocsDocumentWithAPI(
 							this,
-							markdownInput,
+							useMarkdownInput ? markdownInput : '', // Pass markdown only if enabled
 							documentTitle,
 							driveId,
 							folderId,
 							folderName,
-							templateDocumentId,
+							useTemplate ? templateDocumentId : undefined,
+							usePlaceholders ? placeholderData : undefined,
+							usePlaceholders && useMarkdownInput ? mainContentPlaceholder : undefined,
 						);
 						break;
 

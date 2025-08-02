@@ -2,6 +2,7 @@ import type { IExecuteFunctions, IHttpRequestMethods } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { MarkdownProcessor } from './markdown-processor';
 import type { DocumentCreationResult } from './types';
+import type { GoogleDocsRequest } from './types';
 
 export class GoogleDocsAPI {
 	static async createGoogleDocsDocumentWithAPI(
@@ -12,62 +13,125 @@ export class GoogleDocsAPI {
 		folderId: string,
 		folderName?: string,
 		templateDocumentId?: string,
+		placeholderData?: any,
+		mainContentPlaceholder?: string,
 	): Promise<DocumentCreationResult> {
 		try {
 			let documentId: string;
+			let markdownInsertIndex = 1;
 
 			if (templateDocumentId) {
-				// Use template
+				// Step 1: Copy the template
 				const copyResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
 					'googleDocsOAuth2Api',
 					{
 						method: 'POST' as IHttpRequestMethods,
 						url: `https://www.googleapis.com/drive/v3/files/${templateDocumentId}/copy`,
-						body: {
-							name: documentTitle,
-							parents: [folderId],
-						},
-						headers: {
-							'Content-Type': 'application/json',
-						},
+						body: { name: documentTitle, parents: [folderId] },
 					},
 				);
 				documentId = copyResponse.id;
 
-				// Clear the copied document's body
-				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
-					executeFunctions,
-					'googleDocsOAuth2Api',
-					{
-						method: 'GET' as IHttpRequestMethods,
-						url: `https://docs.googleapis.com/v1/documents/${documentId}`,
-					},
-				);
-
-				const content = doc.body.content;
-				if (content && content.length > 2) {
-					const requests = [
-						{
-							deleteContentRange: {
-								range: {
-									startIndex: 1,
-									endIndex: content[content.length - 1].endIndex - 1,
+				// Step 2: Replace simple placeholders in a dedicated batch
+				if (placeholderData && Object.keys(placeholderData).length > 0) {
+					const placeholderRequests: GoogleDocsRequest[] = [];
+					for (const key in placeholderData) {
+						if (
+							Object.prototype.hasOwnProperty.call(placeholderData, key) &&
+							`{{${key}}}` !== mainContentPlaceholder
+						) {
+							placeholderRequests.push({
+								replaceAllText: {
+									containsText: { text: `{{${key}}}`, matchCase: false },
+									replaceText: String(placeholderData[key]),
 								},
+							});
+						}
+					}
+					if (placeholderRequests.length > 0) {
+						await executeFunctions.helpers.httpRequestWithAuthentication.call(
+							executeFunctions,
+							'googleDocsOAuth2Api',
+							{
+								method: 'POST' as IHttpRequestMethods,
+								url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+								body: { requests: placeholderRequests },
 							},
-						},
-					];
+						);
+					}
+				}
 
+				// Step 3: Prepare the body for Markdown content in a second, separate batch
+				const contentRequests: GoogleDocsRequest[] = [];
+				if (mainContentPlaceholder && mainContentPlaceholder.trim() !== '') {
+					// Case A: Inject Markdown at a specific placeholder
+					const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+						executeFunctions,
+						'googleDocsOAuth2Api',
+						{
+							method: 'GET' as IHttpRequestMethods,
+							url: `https://docs.googleapis.com/v1/documents/${documentId}?fields=body.content`,
+						},
+					);
+
+					let placeholderFound = false;
+					if (doc.body && doc.body.content) {
+						for (const element of doc.body.content) {
+							if (element.paragraph) {
+								for (const run of element.paragraph.elements) {
+									if (run.textRun && run.textRun.content.includes(mainContentPlaceholder)) {
+										const placeholderStartIndex =
+											(run.startIndex || 0) + run.textRun.content.indexOf(mainContentPlaceholder);
+										contentRequests.push({
+											deleteContentRange: {
+												range: {
+													startIndex: placeholderStartIndex,
+													endIndex: placeholderStartIndex + mainContentPlaceholder.length,
+												},
+											},
+										});
+										markdownInsertIndex = placeholderStartIndex;
+										placeholderFound = true;
+										break;
+									}
+								}
+							}
+							if (placeholderFound) break;
+						}
+					}
+				} else if (mainContentPlaceholder !== undefined) {
+					// Case B: Clear the entire body
+					const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+						executeFunctions,
+						'googleDocsOAuth2Api',
+						{
+							method: 'GET' as IHttpRequestMethods,
+							url: `https://docs.googleapis.com/v1/documents/${documentId}?fields=body.content`,
+						},
+					);
+					const content = doc.body.content;
+					if (content && content.length > 1) {
+						// Check for more than just start/end markers
+						const lastElement = content[content.length - 1];
+						if (lastElement.endIndex > 1) {
+							contentRequests.push({
+								deleteContentRange: {
+									range: { startIndex: 1, endIndex: lastElement.endIndex - 1 },
+								},
+							});
+						}
+					}
+				}
+
+				if (contentRequests.length > 0) {
 					await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
 						'googleDocsOAuth2Api',
 						{
 							method: 'POST' as IHttpRequestMethods,
 							url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
-							body: { requests },
-							headers: {
-								'Content-Type': 'application/json',
-							},
+							body: { requests: contentRequests },
 						},
 					);
 				}
@@ -126,26 +190,26 @@ export class GoogleDocsAPI {
 				}
 			}
 
-			// Step 2: Convert markdown and add content
-			const apiRequests = MarkdownProcessor.convertMarkdownToApiRequests(
-				markdownInput,
-				'',
-				'single',
-			);
-
-			if (apiRequests.batchUpdateRequest.requests.length > 0) {
-				await executeFunctions.helpers.httpRequestWithAuthentication.call(
-					executeFunctions,
-					'googleDocsOAuth2Api',
-					{
-						method: 'POST' as IHttpRequestMethods,
-						url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
-						body: apiRequests.batchUpdateRequest,
-						headers: {
-							'Content-Type': 'application/json',
-						},
-					},
+			// Step 3: Convert markdown and add content (if markdown is provided)
+			if (markdownInput && markdownInput.trim()) {
+				const apiRequests = MarkdownProcessor.convertMarkdownToApiRequests(
+					markdownInput,
+					'',
+					'single',
+					markdownInsertIndex,
 				);
+
+				if (apiRequests.batchUpdateRequest.requests.length > 0) {
+					await executeFunctions.helpers.httpRequestWithAuthentication.call(
+						executeFunctions,
+						'googleDocsOAuth2Api',
+						{
+							method: 'POST' as IHttpRequestMethods,
+							url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+							body: apiRequests.batchUpdateRequest,
+						},
+					);
+				}
 			}
 
 			return {
