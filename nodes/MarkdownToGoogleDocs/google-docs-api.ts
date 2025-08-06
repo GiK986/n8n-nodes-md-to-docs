@@ -74,7 +74,6 @@ export class GoogleDocsAPI {
 							url: `https://docs.googleapis.com/v1/documents/${documentId}?fields=body.content`,
 						},
 					);
-
 					let placeholderFound = false;
 					if (doc.body && doc.body.content) {
 						for (const element of doc.body.content) {
@@ -99,6 +98,12 @@ export class GoogleDocsAPI {
 							}
 							if (placeholderFound) break;
 						}
+					}
+					if (!placeholderFound) {
+						throw new NodeOperationError(
+							executeFunctions.getNode(),
+							'Placeholder not found in document. Please verify that the placeholder name matches between your template document and the parameter settings.',
+						);
 					}
 				} else if (mainContentPlaceholder !== undefined) {
 					// Case B: Clear the entire body
