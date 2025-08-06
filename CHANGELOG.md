@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-08-06
+
+### Changed
+
+- **Performance Improvements**: Migrated from jsdom to cheerio for HTML parsing
+  - Significantly reduced bundle size by removing heavy jsdom dependency
+  - Faster HTML processing with cheerio's server-side DOM manipulation
+  - Improved build performance by switching from TypeScript compiler to esbuild
+- **Enhanced TypeScript Support**: Added proper type safety throughout the codebase
+  - Introduced proper TypeScript types from domhandler (Element, ChildNode)
+  - Added type guards (isTag, isText) for runtime type safety
+  - Comprehensive type definitions for FormatRange, LineMetadata, and TextStyle interfaces
+- **Code Quality**: Improved code maintainability and reliability
+  - Fixed all unused variable warnings
+  - Better error handling and edge case coverage
+  - Consistent API usage across all DOM operations
+
+### Fixed
+
+- **Improved Spacing**: Enhanced visual formatting for lists and blockquotes
+  - Lists and blockquotes now use proper paragraph spacing instead of manual newlines
+  - Better separation between document elements without excessive whitespace
+  - Consistent spacing behavior across different content types
+
+### Technical
+
+- Moved `cheerio` and `marked` to devDependencies for cleaner production installs
+- Updated build system to use esbuild for better bundling performance
+- Removed jsdom dependency entirely
+- Enhanced type definitions in types.ts for better developer experience
+
 ## [0.3.0] - 2025-08-01
 
 ### ⚠️ Breaking Changes
@@ -37,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reworked list processing to correctly handle multi-line and deeply nested list items. This resolves issues with incorrect indentation and formatting on nested content.
 
 ## [0.2.0] - 2025-07-28
-
+<!-- markdownlint-disable MD024 -->
 ### Added
 
 - **Template System**: Users can now create Google Docs from a template. This feature preserves the header and footer of the template, allowing for consistent document styling.
