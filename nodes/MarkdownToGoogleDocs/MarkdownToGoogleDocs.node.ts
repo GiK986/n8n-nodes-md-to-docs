@@ -201,5 +201,5 @@ class MarkdownToGoogleDocs implements INodeType {
 	}
 }
 
-// Ensure proper CommonJS export for n8n
-module.exports = { MarkdownToGoogleDocs };
+// Export as default for n8n compatibility
+module.exports = MarkdownToGoogleDocs;
