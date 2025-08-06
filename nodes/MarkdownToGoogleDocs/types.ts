@@ -28,17 +28,7 @@ export interface GoogleDocsRequest {
 			startIndex: number;
 			endIndex: number;
 		};
-		textStyle: {
-			bold?: boolean;
-			italic?: boolean;
-			weightedFontFamily?: { fontFamily: string };
-			backgroundColor?: any;
-			link?: { url: string };
-			fontSize?: {
-				magnitude: number;
-				unit: string;
-			};
-		};
+		textStyle: TextStyle;
 		fields: string;
 	};
 	updateParagraphStyle?: {
@@ -189,4 +179,59 @@ export interface DocumentCreationResult {
 	templateFolderId?: string;
 	templateDocumentId?: string;
 	message: string;
+}
+
+export interface FormatRange {
+	start: number;
+	end: number;
+	type: string;
+	url?: string;
+}
+
+export interface LineItemList {
+	level: number;
+	lines: LineItem[];
+}
+
+export interface LineItem {
+	text: string;
+	isPrimary: boolean;
+	formatRanges: FormatRange[];
+}
+
+export interface LineMetadata {
+	line: LineItem;
+	level: number;
+	startIndex: number;
+	textToInsert: string;
+}
+
+export interface RowData {
+	content: string;
+	formatRanges: FormatRange[];
+	isHeader: boolean;
+}
+
+export interface TextStyle {
+	bold?: boolean;
+	italic?: boolean;
+	weightedFontFamily?: { fontFamily: string };
+	backgroundColor?: {
+		color: {
+			rgbColor: {
+				red: number;
+				green: number;
+				blue: number;
+			};
+		};
+	};
+	link?: { url: string };
+	fontSize?: {
+		magnitude: number;
+		unit: string;
+	};
+}
+
+export interface ProcessListItemsResult {
+	items: LineItemList[];
 }

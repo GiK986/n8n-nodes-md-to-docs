@@ -1,6 +1,18 @@
 import { marked } from 'marked';
-import { JSDOM } from 'jsdom';
-import type { GoogleDocsRequest, ConversionResult } from './types';
+import * as cheerio from 'cheerio';
+import type { Element, ChildNode } from 'domhandler';
+import { isText, isTag } from 'domhandler';
+import type {
+	GoogleDocsRequest,
+	ConversionResult,
+	FormatRange,
+	RowData,
+	LineItem,
+	LineItemList,
+	LineMetadata,
+	TextStyle,
+	ProcessListItemsResult,
+} from './types';
 
 export class MarkdownProcessor {
 	/**
@@ -15,26 +27,28 @@ export class MarkdownProcessor {
 		initialInsertIndex: number = 1,
 	): ConversionResult {
 		// Fix escaped characters from n8n
-		const cleanMarkdown = markdownInput.replace('\`', '`');
+		const cleanMarkdown = markdownInput.replace('\`', '`').replace('\n\n', '\n');
 
 		// Convert markdown to HTML
 		const html = marked.parse(cleanMarkdown, { async: false }) as string;
-		const dom = new JSDOM(html);
-		const document = dom.window.document;
+
+		// Load HTML with cheerio instead of jsdom
+		const $ = cheerio.load(html);
 
 		const requests: GoogleDocsRequest[] = [];
 		let insertIndex = initialInsertIndex;
 
-		// Process HTML elements
-		const elements = document.body.childNodes;
-		for (const element of elements) {
-			const elementRequests = this.processHtmlElement(element, insertIndex);
-			if (elementRequests && elementRequests.length > 0) {
-				requests.push(...elementRequests);
-				// Update insertIndex based on text content added
-				insertIndex = this.calculateNewIndex(elementRequests);
-			}
-		}
+		// Process HTML elements - cheerio equivalent of document.body.childNodes
+		$('body')
+			.children()
+			.each((_index, element) => {
+				const elementRequests = this.processHtmlElement(element, insertIndex, $);
+				if (elementRequests && elementRequests.length > 0) {
+					requests.push(...elementRequests);
+					// Update insertIndex based on text content added
+					insertIndex = this.calculateNewIndex(elementRequests);
+				}
+			});
 
 		if (outputFormat === 'single') {
 			return {
@@ -66,54 +80,73 @@ export class MarkdownProcessor {
 	/**
 	 * Process individual HTML elements and convert them to Google Docs requests
 	 */
-	static processHtmlElement(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processHtmlElement(
+		element: Element | ChildNode,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 
 		// Skip text nodes that are only whitespace
-		if (element.nodeType === 3 && element.textContent.trim() === '') {
+		if (isText(element) && $(element).text().trim() === '') {
 			return requests;
 		}
 
-		switch (element.nodeName) {
+		if (!isTag(element)) {
+			// Handle text nodes and other non-tag elements
+			const textContent = $(element).text();
+			if (textContent && textContent.trim()) {
+				requests.push({
+					insertText: {
+						location: { index: insertIndex },
+						text: textContent.trim() + '\n',
+					},
+				});
+			}
+			return requests;
+		}
+
+		switch (element.name.toUpperCase()) {
 			case 'H1':
 			case 'H2':
 			case 'H3':
 			case 'H4':
 			case 'H5':
 			case 'H6':
-				return this.processHeading(element, insertIndex);
+				return this.processHeading(element, insertIndex, $);
 
 			case 'P':
-				return this.processParagraph(element, insertIndex);
+				return this.processParagraph(element, insertIndex, $);
 
 			case 'UL':
-				return this.processUnorderedList(element, insertIndex);
+				return this.processUnorderedList(element, insertIndex, $);
 
 			case 'OL':
-				return this.processOrderedList(element, insertIndex);
+				return this.processOrderedList(element, insertIndex, $);
 
 			case 'TABLE':
-				return this.processTable(element, insertIndex);
+				return this.processTable(element, insertIndex, $);
 
 			case 'BLOCKQUOTE':
-				return this.processBlockquote(element, insertIndex);
+				return this.processBlockquote(element, insertIndex, $);
 
 			case 'PRE':
-				return this.processCodeBlock(element, insertIndex);
+				return this.processCodeBlock(element, insertIndex, $);
 
 			case 'HR':
 				return this.processHorizontalRule(insertIndex);
 
 			case 'IMG':
-				return this.processImage(element, insertIndex);
+				return this.processImage(element, insertIndex, $);
 
 			default:
-				// For other elements or text nodes, try to extract text content
-				if (element.textContent && element.textContent.trim()) {
+				// For other HTML elements, try to extract text content
+				const textContent = $(element).text();
+				if (textContent && textContent.trim()) {
 					requests.push({
 						insertText: {
 							location: { index: insertIndex },
-							text: element.textContent.trim() + '\n', // remove one newline
+							text: textContent.trim() + '\n',
 						},
 					});
 				}
@@ -124,10 +157,14 @@ export class MarkdownProcessor {
 	/**
 	 * Process heading elements (H1-H6)
 	 */
-	static processHeading(element: any, insertIndex: number): GoogleDocsRequest[] {
-		const text = element.textContent;
-		const headingLevel = parseInt(element.nodeName.charAt(1));
-		const headingText = text + '\n'; // remove one newline
+	static processHeading(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
+		const text = $(element).text();
+		const headingLevel = parseInt(element.tagName!.charAt(1));
+		const headingText = text + '\n';
 
 		return [
 			{
@@ -154,22 +191,28 @@ export class MarkdownProcessor {
 	/**
 	 * Process paragraph elements with inline formatting
 	 */
-	static processParagraph(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processParagraph(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 
 		// Check if paragraph contains images or inline formatting
-		const imgElements = element.querySelectorAll('img');
-		if (imgElements.length > 0 || this.hasInlineFormatting(element)) {
-			return this.processParagraphWithInlineFormatting(element, insertIndex);
+		const $element = $(element);
+		const imgElements = $element.find('img');
+
+		if (imgElements.length > 0 || this.hasInlineFormatting(element, $)) {
+			return this.processParagraphWithInlineFormatting(element, insertIndex, $);
 		}
 
 		// Simple paragraph without formatting
-		const text = element.textContent;
+		const text = $element.text();
 		if (text && text.trim()) {
 			requests.push({
 				insertText: {
 					location: { index: insertIndex },
-					text: text + '\n', // remove one newline
+					text: text + '\n',
 				},
 			});
 		}
@@ -180,35 +223,37 @@ export class MarkdownProcessor {
 	/**
 	 * Check if element has inline formatting (bold, italic, links, etc.)
 	 */
-	static hasInlineFormatting(element: any): boolean {
-		const formattingTags = ['STRONG', 'B', 'EM', 'I', 'CODE', 'A', 'BR'];
-		return formattingTags.some((tag) => element.querySelector(tag.toLowerCase()));
+	static hasInlineFormatting(element: any, $: cheerio.CheerioAPI): boolean {
+		const $element = $(element);
+		const formattingTags = ['strong', 'b', 'em', 'i', 'code', 'a', 'br'];
+		return formattingTags.some((tag) => $element.find(tag).length > 0);
 	}
 
 	/**
 	 * Process paragraph with inline formatting and/or images
 	 */
 	static processParagraphWithInlineFormatting(
-		element: any,
+		element: Element,
 		insertIndex: number,
+		$: cheerio.CheerioAPI,
 	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
+		const $element = $(element);
 
 		// Check if we have any IMG elements that need special handling
-		const imgElements = element.querySelectorAll('img');
+		const imgElements = $element.find('img');
 
 		if (imgElements.length > 0) {
 			// Process mixed content (text + images + formatting)
-			return this.processMixedContent(element, insertIndex);
+			return this.processMixedContent(element, insertIndex, $);
 		}
 
 		// Original inline formatting logic for text-only content
-		const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
+		const formatRanges: FormatRange[] = [];
 
-		// Recursively process child nodes to build text and track formatting
-		const textContent = this.processChildNodes(element.childNodes, formatRanges);
-
-		const fullText = textContent + '\n'; // remove one newline
+		// Process child nodes to build text and track formatting
+		const textContent = this.processChildNodes(element, formatRanges, $);
+		const fullText = textContent + '\n';
 
 		// Insert text
 		requests.push({
@@ -232,15 +277,20 @@ export class MarkdownProcessor {
 	/**
 	 * Process mixed content (text + images + inline formatting)
 	 */
-	static processMixedContent(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processMixedContent(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 		let currentIndex = insertIndex;
+		const $element = $(element);
 
-		// Process all child nodes in order (text nodes, image elements, formatted elements)
-		for (const child of element.childNodes) {
-			if (child.nodeType === 3) {
+		// Process all child nodes in order
+		$element.contents().each((_index, child) => {
+			if (child.type === 'text') {
 				// Text node
-				const text = child.textContent;
+				const text = $(child).text();
 				if (text && text.trim()) {
 					requests.push({
 						insertText: {
@@ -250,19 +300,16 @@ export class MarkdownProcessor {
 					});
 					currentIndex += text.length;
 				}
-			} else if (child.nodeType === 1 && child.nodeName === 'IMG') {
+			} else if (child.type === 'tag' && child.name === 'img') {
 				// Image element
-				const imageRequests = this.processImage(child, currentIndex);
+				const imageRequests = this.processImage(child, currentIndex, $);
 				requests.push(...imageRequests);
-
-				// Update index based on image requests
 				currentIndex = this.calculateNewIndex(imageRequests);
-			} else if (child.nodeType === 1) {
+			} else if (isTag(child)) {
 				// Other element - process with inline formatting if needed
-				if (this.hasInlineFormatting(child)) {
-					const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> =
-						[];
-					const textContent = this.processChildNodes(child.childNodes, formatRanges);
+				if (this.hasInlineFormatting(child, $)) {
+					const formatRanges: FormatRange[] = [];
+					const textContent = this.processChildNodes(child, formatRanges, $);
 
 					if (textContent.trim()) {
 						// Insert text
@@ -285,7 +332,7 @@ export class MarkdownProcessor {
 					}
 				} else {
 					// Simple element
-					const text = child.textContent;
+					const text = $(child).text();
 					if (text && text.trim()) {
 						requests.push({
 							insertText: {
@@ -297,7 +344,7 @@ export class MarkdownProcessor {
 					}
 				}
 			}
-		}
+		});
 
 		// Add paragraph ending newline
 		requests.push({
@@ -308,37 +355,37 @@ export class MarkdownProcessor {
 		});
 
 		return requests;
-	} /**
+	}
+
+	/**
 	 * Recursively process child nodes to extract text and formatting
 	 */
 	static processChildNodes(
-		childNodes: any[],
-		formatRanges: Array<{ start: number; end: number; type: string; url?: string }>,
+		element: Element | ChildNode,
+		formatRanges: FormatRange[],
+		$: cheerio.CheerioAPI,
 		baseOffset: number = 0,
 	): string {
 		let result = '';
+		const $element = $(element);
 
-		for (const node of childNodes) {
-			if (node.nodeType === 3) {
+		$element.contents().each((_index, node) => {
+			if (node.type === 'text') {
 				// Text node
-				result += node.textContent;
-			} else if (node.nodeName === 'BR') {
+				result += $(node).text().replace(/\n/g, '');
+			} else if (node.type === 'tag' && node.name === 'br') {
 				// BR tag - convert to newline
 				result += '\n';
-			} else {
+			} else if (isTag(node)) {
 				// Element node
 				const beforeLength = result.length;
-				const childText = this.processChildNodes(
-					node.childNodes,
-					formatRanges,
-					baseOffset + beforeLength,
-				);
+				const childText = this.processChildNodes(node, formatRanges, $, baseOffset + beforeLength);
 				result += childText;
 				const afterLength = result.length;
 
 				// Track formatting for this element
 				if (beforeLength < afterLength) {
-					const formatType = this.getFormatType(node.nodeName);
+					const formatType = this.getFormatType(node.name);
 					if (formatType) {
 						const range = {
 							start: baseOffset + beforeLength,
@@ -347,15 +394,18 @@ export class MarkdownProcessor {
 						};
 
 						// Add URL for links
-						if (node.nodeName === 'A' && node.href) {
-							(range as any).url = node.href;
+						if (node.name === 'a') {
+							const href = $(node).attr('href');
+							if (href) {
+								(range as any).url = href;
+							}
 						}
 
 						formatRanges.push(range);
 					}
 				}
 			}
-		}
+		});
 
 		return result;
 	}
@@ -364,16 +414,16 @@ export class MarkdownProcessor {
 	 * Get format type from HTML tag name
 	 */
 	static getFormatType(nodeName: string): string | null {
-		switch (nodeName) {
-			case 'STRONG':
-			case 'B':
+		switch (nodeName?.toLowerCase()) {
+			case 'strong':
+			case 'b':
 				return 'bold';
-			case 'EM':
-			case 'I':
+			case 'em':
+			case 'i':
 				return 'italic';
-			case 'CODE':
+			case 'code':
 				return 'code';
-			case 'A':
+			case 'a':
 				return 'link';
 			default:
 				return null;
@@ -383,11 +433,8 @@ export class MarkdownProcessor {
 	/**
 	 * Create formatting request for a range
 	 */
-	static createFormatRequest(
-		range: { start: number; end: number; type: string; url?: string },
-		insertIndex: number,
-	): GoogleDocsRequest | null {
-		let textStyle: any = {};
+	static createFormatRequest(range: FormatRange, insertIndex: number): GoogleDocsRequest | null {
+		let textStyle: TextStyle = {};
 		let fields = '';
 
 		switch (range.type) {
@@ -435,59 +482,57 @@ export class MarkdownProcessor {
 	/**
 	 * Process unordered list (UL)
 	 */
-	static processUnorderedList(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processUnorderedList(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		// Check if this is a checkbox list by looking for input[type="checkbox"] elements
-		const checkboxInputs = element.querySelectorAll('input[type="checkbox"]');
+		const $element = $(element);
+		const checkboxInputs = $element.find('input[type="checkbox"]');
 		const isCheckboxList = checkboxInputs.length > 0;
 
 		if (isCheckboxList) {
-			// Use special checkbox bullet preset for checkbox lists
-			return this.processList(element, insertIndex, 'BULLET_CHECKBOX');
+			return this.processList(element, insertIndex, 'BULLET_CHECKBOX', $);
 		} else {
-			// Use regular bullet preset for normal lists
-			return this.processList(element, insertIndex, 'BULLET_DISC_CIRCLE_SQUARE');
+			return this.processList(element, insertIndex, 'BULLET_DISC_CIRCLE_SQUARE', $);
 		}
 	}
 
 	/**
 	 * Process ordered list (OL)
 	 */
-	static processOrderedList(element: any, insertIndex: number): GoogleDocsRequest[] {
-		return this.processList(element, insertIndex, 'NUMBERED_DECIMAL_ALPHA_ROMAN');
+	static processOrderedList(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
+		return this.processList(element, insertIndex, 'NUMBERED_DECIMAL_ALPHA_ROMAN', $);
 	}
 
 	/**
 	 * Process list elements (UL or OL) with proper nested support
 	 */
-	static processList(element: any, insertIndex: number, bulletPreset: string): GoogleDocsRequest[] {
+	static processList(
+		element: Element,
+		insertIndex: number,
+		bulletPreset: string,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 		let currentIndex = insertIndex;
 
-		const processedData = this.processListItemsRecursively(element, 0, bulletPreset);
+		const processedData = this.processListItemsRecursively(element, 0, bulletPreset, $);
 
 		if (processedData.items.length === 0) {
 			return requests;
 		}
 
 		// Phase 1: Insert all text and gather metadata
-		const lineMetadata: Array<{
-			line: {
-				text: string;
-				isPrimary: boolean;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-			};
-			level: number;
-			startIndex: number;
-			textToInsert: string;
-		}> = [];
+		const lineMetadata: LineMetadata[] = [];
 
 		let fullTextToInsert = '';
 		let initialListIndex = currentIndex;
-
-		// Add a newline before the list to ensure proper separation
-		requests.push({ insertText: { location: { index: currentIndex }, text: '\n' } });
-		currentIndex++;
-		initialListIndex++;
 
 		for (const item of processedData.items) {
 			for (const line of item.lines) {
@@ -512,7 +557,7 @@ export class MarkdownProcessor {
 		});
 
 		// Phase 2: Create bullets for the entire list block
-		const listEndIndex = initialListIndex + fullTextToInsert.length - 1; // Exclude final newline
+		const listEndIndex = initialListIndex + fullTextToInsert.length - 1;
 		requests.push({
 			createParagraphBullets: {
 				range: { startIndex: initialListIndex, endIndex: listEndIndex },
@@ -559,14 +604,40 @@ export class MarkdownProcessor {
 			}
 		}
 
-		// Add a final newline for separation after the list
-		const finalEndIndex = listEndIndex - totalTabsRemoved;
-		requests.push({
-			insertText: {
-				location: { index: finalEndIndex + 1 },
-				text: '\n',
-			},
-		});
+		// Apply spacing like blockquote - spaceAbove to first item, spaceBelow to last item
+		const firstItemMeta = lineMetadata[0];
+		const lastItemMeta = lineMetadata[lineMetadata.length - 1];
+
+		if (firstItemMeta) {
+			requests.push({
+				updateParagraphStyle: {
+					range: {
+						startIndex: firstItemMeta.startIndex - totalTabsRemoved,
+						endIndex:
+							firstItemMeta.startIndex - totalTabsRemoved + firstItemMeta.textToInsert.length,
+					},
+					paragraphStyle: {
+						spaceAbove: { magnitude: 12, unit: 'PT' },
+					},
+					fields: 'spaceAbove',
+				},
+			});
+		}
+
+		if (lastItemMeta) {
+			requests.push({
+				updateParagraphStyle: {
+					range: {
+						startIndex: lastItemMeta.startIndex - totalTabsRemoved,
+						endIndex: lastItemMeta.startIndex - totalTabsRemoved + lastItemMeta.textToInsert.length,
+					},
+					paragraphStyle: {
+						spaceBelow: { magnitude: 12, unit: 'PT' },
+					},
+					fields: 'spaceBelow',
+				},
+			});
+		}
 
 		return requests;
 	}
@@ -575,66 +646,42 @@ export class MarkdownProcessor {
 	 * Recursively process list items to extract text, formatting, and nesting levels
 	 */
 	static processListItemsRecursively(
-		element: any,
+		element: Element,
 		level: number,
-		bulletPreset?: string,
-	): {
-		items: Array<{
-			level: number;
-			lines: Array<{
-				text: string;
-				isPrimary: boolean;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-			}>;
-		}>;
-	} {
-		const items: Array<{
-			level: number;
-			lines: Array<{
-				text: string;
-				isPrimary: boolean;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-			}>;
-		}> = [];
+		bulletPreset: string | undefined,
+		$: cheerio.CheerioAPI,
+	): ProcessListItemsResult {
+		const items: LineItemList[] = [];
+
+		const $element = $(element);
 
 		// Get direct children li elements only (not nested ones)
-		const directListItems = Array.from(element.children).filter(
-			(child: any) => child.nodeName === 'LI',
-		);
+		$element.children('li').each((_index, listItem) => {
+			const $listItem = $(listItem);
+			const lines: LineItem[] = [];
 
-		for (const listItem of directListItems) {
-			const lines: Array<{
-				text: string;
-				isPrimary: boolean;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-			}> = [];
 			let currentLineNodes: any[] = [];
 			let isPrimaryLine = true;
 
 			// Check for checkbox prefix only for primary line
-			const checkboxInput = (listItem as any).querySelector('input[type="checkbox"]');
+			const checkboxInput = $listItem.find('input[type="checkbox"]').first();
 			let checkboxPrefix = '';
-			if (checkboxInput && bulletPreset === 'BULLET_CHECKBOX') {
-				checkboxPrefix = checkboxInput.checked ? '✅ ' : '❌ ';
+			if (checkboxInput.length > 0 && bulletPreset === 'BULLET_CHECKBOX') {
+				checkboxPrefix = checkboxInput.prop('checked') ? '✅ ' : '❌ ';
 			}
 
-			const nonNestedChildren = Array.from((listItem as any).childNodes).filter(
-				(child: any) => (child as any).nodeName !== 'UL' && (child as any).nodeName !== 'OL',
-			);
+			// Process content, handling BR tags for line breaks
+			$listItem.contents().each((_i, child) => {
+				if (child.type === 'tag' && (child.name === 'ul' || child.name === 'ol')) {
+					// Skip nested lists for now, they'll be processed separately
+					return;
+				}
 
-			for (const child of nonNestedChildren as Node[]) {
-				if (child.nodeName === 'BR') {
+				if (child.type === 'tag' && child.name === 'br') {
 					const formatRanges: any[] = [];
-					const text = this.processChildNodes(currentLineNodes, formatRanges);
+					const text = this.processChildNodesFromArray(currentLineNodes, formatRanges, $);
 					if (text.trim() || lines.length > 0) {
 						const trimmedText = text.trim();
-						const leadingSpaces = text.length - text.trimStart().length;
-						if (leadingSpaces > 0) {
-							for (const range of formatRanges) {
-								range.start = Math.max(0, range.start - leadingSpaces);
-								range.end = Math.max(0, range.end - leadingSpaces);
-							}
-						}
 						lines.push({ text: trimmedText, isPrimary: isPrimaryLine, formatRanges });
 					}
 					currentLineNodes = [];
@@ -642,20 +689,14 @@ export class MarkdownProcessor {
 				} else {
 					currentLineNodes.push(child);
 				}
-			}
+			});
 
+			// Process remaining nodes
 			if (currentLineNodes.length > 0) {
 				const formatRanges: any[] = [];
-				const text = this.processChildNodes(currentLineNodes, formatRanges);
+				const text = this.processChildNodesFromArray(currentLineNodes, formatRanges, $);
 				if (text.trim()) {
 					const trimmedText = text.trim();
-					const leadingSpaces = text.length - text.trimStart().length;
-					if (leadingSpaces > 0) {
-						for (const range of formatRanges) {
-							range.start = Math.max(0, range.start - leadingSpaces);
-							range.end = Math.max(0, range.end - leadingSpaces);
-						}
-					}
 					lines.push({ text: trimmedText, isPrimary: isPrimaryLine, formatRanges });
 				}
 			}
@@ -677,54 +718,95 @@ export class MarkdownProcessor {
 			}
 
 			// Process nested lists
-			const nestedLists = Array.from((listItem as any).children).filter(
-				(child: any) => child.nodeName === 'UL' || child.nodeName === 'OL',
-			);
-
-			for (const nestedList of nestedLists) {
-				const nestedResult = this.processListItemsRecursively(nestedList, level + 1, bulletPreset);
+			$listItem.children('ul, ol').each((_i, nestedList) => {
+				const nestedResult = this.processListItemsRecursively(
+					nestedList,
+					level + 1,
+					bulletPreset,
+					$,
+				);
 				items.push(...nestedResult.items);
-			}
-		}
+			});
+		});
 
 		return { items };
 	}
 
 	/**
+	 * Helper method to process an array of nodes
+	 */
+	static processChildNodesFromArray(
+		nodes: (Element | ChildNode)[],
+		formatRanges: FormatRange[],
+		$: cheerio.CheerioAPI,
+		baseOffset: number = 0,
+	): string {
+		let result = '';
+
+		for (const node of nodes) {
+			if (node.type === 'text') {
+				result += $(node).text();
+			} else if (isTag(node)) {
+				const beforeLength = result.length;
+				const childText = this.processChildNodes(node, formatRanges, $, baseOffset + beforeLength);
+				result += childText;
+				const afterLength = result.length;
+
+				if (beforeLength < afterLength) {
+					const formatType = this.getFormatType(node.name);
+					if (formatType) {
+						const range: FormatRange = {
+							start: baseOffset + beforeLength,
+							end: baseOffset + afterLength,
+							type: formatType,
+						};
+
+						if (node.name === 'a') {
+							const href = $(node).attr('href');
+							if (href) {
+								range.url = href;
+							}
+						}
+
+						formatRanges.push(range);
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
+	/**
 	 * Process table element with accurate cell indexing and formatting support
 	 */
-	static processTable(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processTable(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
+		const $element = $(element);
 
 		// Extract table data with proper formatting support
-		const rows = element.querySelectorAll('tr');
-		const tableData: Array<
-			Array<{
-				content: string;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-				isHeader: boolean;
-			}>
-		> = [];
+		const rows = $element.find('tr');
+		const tableData: RowData[][] = [];
 
-		for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-			const row = rows[rowIndex];
-			const cells = row.querySelectorAll('th, td');
-			const rowData: Array<{
-				content: string;
-				formatRanges: Array<{ start: number; end: number; type: string; url?: string }>;
-				isHeader: boolean;
-			}> = [];
+		rows.each((rowIndex, row) => {
+			const $row = $(row);
+			const cells = $row.find('th, td');
+			const rowData: RowData[] = [];
 
-			for (const cell of cells) {
-				const isHeader = cell.nodeName === 'TH' || rowIndex === 0; // First row or TH elements
-				const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
+			cells.each((_cellIndex, cell) => {
+				const $cell = $(cell);
+				const isHeader = cell.name === 'th' || rowIndex === 0;
+				const formatRanges: FormatRange[] = [];
 
-				// Use processChildNodes to extract text and formatting from cell content
 				let cellContent = '';
-				if (this.hasInlineFormatting(cell)) {
-					cellContent = this.processChildNodes(cell.childNodes, formatRanges);
+				if (this.hasInlineFormatting(cell, $)) {
+					cellContent = this.processChildNodes(cell, formatRanges, $);
 				} else {
-					cellContent = cell.textContent.trim();
+					cellContent = $cell.text().trim();
 				}
 
 				rowData.push({
@@ -732,9 +814,9 @@ export class MarkdownProcessor {
 					formatRanges: formatRanges,
 					isHeader: isHeader,
 				});
-			}
+			});
 			tableData.push(rowData);
-		}
+		});
 
 		if (tableData.length === 0 || tableData[0].length === 0) {
 			return requests;
@@ -767,7 +849,7 @@ export class MarkdownProcessor {
 							},
 						});
 
-						// Apply inline formatting from processChildNodes
+						// Apply inline formatting
 						for (const range of cellData.formatRanges) {
 							const formatRequest = this.createFormatRequest(range, textPosition);
 							if (formatRequest) {
@@ -775,7 +857,7 @@ export class MarkdownProcessor {
 							}
 						}
 
-						// Apply header formatting (bold + center alignment)
+						// Apply header formatting
 						if (cellData.isHeader) {
 							requests.push({
 								updateTextStyle: {
@@ -804,7 +886,7 @@ export class MarkdownProcessor {
 							});
 						}
 
-						currentCellIndex += cellData.content.length + 2; // +2 for cell boundary
+						currentCellIndex += cellData.content.length + 2;
 					} else {
 						// Empty cell
 						requests.push({
@@ -817,7 +899,6 @@ export class MarkdownProcessor {
 					}
 				}
 
-				// Add extra spacing between rows
 				currentCellIndex += 1;
 			}
 
@@ -847,11 +928,9 @@ export class MarkdownProcessor {
 
 		let tableText = '\n[Table Content]\n';
 
-		// Add header if exists
 		if (tableData.length > 0) {
 			tableText += 'Headers: ' + tableData[0].join(', ') + '\n';
 
-			// Add data rows
 			for (let i = 1; i < tableData.length; i++) {
 				tableText += `Row ${i}: ` + tableData[i].join(', ') + '\n';
 			}
@@ -872,114 +951,121 @@ export class MarkdownProcessor {
 	/**
 	 * Process blockquote element with inline formatting support
 	 */
-	static processBlockquote(element: any, insertIndex: number): GoogleDocsRequest[] {
+	static processBlockquote(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
+		const $element = $(element);
+
+		let fullText = '';
+		const formatRanges: FormatRange[] = [];
 
 		// Check if blockquote has inline formatting
-		if (this.hasInlineFormatting(element)) {
+		if (this.hasInlineFormatting(element, $)) {
 			// Process with inline formatting
-			const formatRanges: Array<{ start: number; end: number; type: string; url?: string }> = [];
-			const textContent = this.processChildNodes(element.childNodes, formatRanges);
-			const fullText = textContent + '\n'; // remove one newline
-
-			// Insert text
-			requests.push({
-				insertText: {
-					location: { index: insertIndex },
-					text: fullText,
-				},
-			});
-
-			// Apply formatting
-			for (const range of formatRanges) {
-				const formatRequest = this.createFormatRequest(range, insertIndex);
-				if (formatRequest) {
-					requests.push(formatRequest);
-				}
-			}
-
-			// Apply blockquote paragraph style
-			requests.push({
-				updateParagraphStyle: {
-					range: {
-						startIndex: insertIndex,
-						endIndex: insertIndex + fullText.length - 1, // -2 for the \n\n | -1 for the \n
-					},
-					paragraphStyle: {
-						indentStart: {
-							magnitude: 36,
-							unit: 'PT',
-						},
-						borderLeft: {
-							color: {
-								color: {
-									rgbColor: {
-										red: 0.8,
-										green: 0.8,
-										blue: 0.8,
-									},
-								},
-							},
-							width: {
-								magnitude: 3,
-								unit: 'PT',
-							},
-							dashStyle: 'SOLID',
-							padding: {
-								magnitude: 8,
-								unit: 'PT',
-							},
-						},
-					},
-					fields: 'indentStart,borderLeft',
-				},
-			});
+			const textContent = this.processChildNodes(element, formatRanges, $);
+			fullText = textContent + '\n';
 		} else {
 			// Simple blockquote without formatting
-			const text = element.textContent.trim();
-			const fullText = text + '\n'; // remove one newline
+			const text = $element.text().trim();
+			fullText = text + '\n';
+		}
 
-			requests.push({
-				insertText: {
-					location: { index: insertIndex },
-					text: fullText,
+		// Insert text
+		requests.push({
+			insertText: {
+				location: { index: insertIndex },
+				text: fullText,
+			},
+		});
+
+		// Apply formatting
+		for (const range of formatRanges) {
+			const formatRequest = this.createFormatRequest(range, insertIndex);
+			if (formatRequest) {
+				requests.push(formatRequest);
+			}
+		}
+
+		// Apply blockquote paragraph style
+		requests.push({
+			updateParagraphStyle: {
+				range: {
+					startIndex: insertIndex,
+					endIndex: insertIndex + fullText.length - 1,
 				},
-			});
+				paragraphStyle: {
+					indentStart: {
+						magnitude: 36,
+						unit: 'PT',
+					},
+					indentFirstLine: {
+						magnitude: 36,
+						unit: 'PT',
+					},
+					borderLeft: {
+						color: {
+							color: {
+								rgbColor: {
+									red: 0.8,
+									green: 0.8,
+									blue: 0.8,
+								},
+							},
+						},
+						width: {
+							magnitude: 3,
+							unit: 'PT',
+						},
+						dashStyle: 'SOLID',
+						padding: {
+							magnitude: 8,
+							unit: 'PT',
+						},
+					},
+				},
+				fields: 'indentStart,indentFirstLine,borderLeft',
+			},
+		});
 
-			// Apply blockquote paragraph style
+		// split the text by newlines and get the first line and the last line
+		const lines = fullText.trim().split('\n');
+		const firstLine = lines[0];
+		const lastLine = lines[lines.length - 1];
+
+		// add updateParagraphStyle spaceAbove to the first line and spaceBelow to the last line
+		if (firstLine.trim() && lastLine.trim()) {
 			requests.push({
 				updateParagraphStyle: {
 					range: {
 						startIndex: insertIndex,
-						endIndex: insertIndex + fullText.length - 1, // -2 for the \n\n | -1 for the \n
+						endIndex: insertIndex + firstLine.length,
 					},
 					paragraphStyle: {
-						indentStart: {
-							magnitude: 36,
+						spaceAbove: {
+							magnitude: 12,
 							unit: 'PT',
 						},
-						borderLeft: {
-							color: {
-								color: {
-									rgbColor: {
-										red: 0.8,
-										green: 0.8,
-										blue: 0.8,
-									},
-								},
-							},
-							width: {
-								magnitude: 3,
-								unit: 'PT',
-							},
-							dashStyle: 'SOLID',
-							padding: {
-								magnitude: 8,
-								unit: 'PT',
-							},
+					},
+					fields: 'spaceAbove',
+				},
+			});
+
+			requests.push({
+				updateParagraphStyle: {
+					range: {
+						startIndex: insertIndex + fullText.length - lastLine.length + 1,
+						endIndex: insertIndex + fullText.length - 1,
+					},
+					paragraphStyle: {
+						spaceBelow: {
+							magnitude: 12,
+							unit: 'PT',
 						},
 					},
-					fields: 'indentStart,borderLeft',
+					fields: 'spaceBelow',
 				},
 			});
 		}
@@ -990,14 +1076,18 @@ export class MarkdownProcessor {
 	/**
 	 * Process code block (PRE element)
 	 */
-	static processCodeBlock(element: any, insertIndex: number): GoogleDocsRequest[] {
-		const text = element.textContent;
+	static processCodeBlock(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
+		const text = $(element).text();
 
 		return [
 			{
 				insertText: {
 					location: { index: insertIndex },
-					text: text + '\n', // remove one newline
+					text: text + '\n',
 				},
 			},
 			{
@@ -1030,9 +1120,7 @@ export class MarkdownProcessor {
 	 * Process horizontal rule
 	 */
 	static processHorizontalRule(insertIndex: number): GoogleDocsRequest[] {
-		// Since Google Docs API doesn't support direct HorizontalRule insertion,
-		// we'll create a paragraph with a bottom border to simulate a horizontal line
-		const hrText = '\n'; // Empty paragraph that will have a bottom border
+		const hrText = '\n';
 
 		return [
 			{
@@ -1093,7 +1181,6 @@ export class MarkdownProcessor {
 	 * Calculate new insert index after adding requests
 	 */
 	static calculateNewIndex(requests: GoogleDocsRequest[]): number {
-		// Find the last insertText request to get the most accurate next position
 		const lastInsertTextRequest = requests.filter((req) => req.insertText).pop();
 
 		if (
@@ -1101,7 +1188,6 @@ export class MarkdownProcessor {
 			lastInsertTextRequest.insertText &&
 			lastInsertTextRequest.insertText.location
 		) {
-			// Calculate next index based on the last text insertion
 			const lastIndex = lastInsertTextRequest.insertText.location.index;
 			const lastTextLength = lastInsertTextRequest.insertText.text.length;
 			let newIndex = lastIndex + lastTextLength;
@@ -1109,22 +1195,25 @@ export class MarkdownProcessor {
 			return newIndex;
 		}
 
-		// This should never happen as we always have insertText requests
 		return 1;
 	}
 
 	/**
 	 * Process image elements (IMG) using Google Docs API insertInlineImage
 	 */
-	static processImage(element: any, insertIndex: number): GoogleDocsRequest[] {
-		const src = element.getAttribute('src') || '';
-		const alt = element.getAttribute('alt') || 'Image';
-		const width = element.getAttribute('width');
-		const height = element.getAttribute('height');
+	static processImage(
+		element: Element,
+		insertIndex: number,
+		$: cheerio.CheerioAPI,
+	): GoogleDocsRequest[] {
+		const $element = $(element);
+		const src = $element.attr('src') || '';
+		const alt = $element.attr('alt') || 'Image';
+		const width = $element.attr('width');
+		const height = $element.attr('height');
 
 		// Validate URL - must be publicly accessible and under 2KB
 		if (!src || src.length > 2000) {
-			// Fallback to text representation for invalid URLs
 			return this.processImageFallback(alt, src, insertIndex);
 		}
 
@@ -1139,7 +1228,7 @@ export class MarkdownProcessor {
 		requests.push({
 			insertText: {
 				location: { index: insertIndex },
-				text: '\n', // Add a newline before the image
+				text: '\n',
 			},
 		});
 
@@ -1181,7 +1270,7 @@ export class MarkdownProcessor {
 
 		requests.push(imageRequest);
 
-		// add newline after the image (no alt text caption for valid images)
+		// add newline after the image
 		requests.push({
 			insertText: {
 				location: { index: insertIndex + 1 },
@@ -1234,7 +1323,7 @@ export class MarkdownProcessor {
 			requests.push({
 				updateTextStyle: {
 					range: {
-						startIndex: insertIndex + displayText.length + 1, // +1 for newline
+						startIndex: insertIndex + displayText.length + 1,
 						endIndex: insertIndex + displayText.length + sourceText.length,
 					},
 					textStyle: {
@@ -1256,17 +1345,14 @@ export class MarkdownProcessor {
 		try {
 			const parsedUrl = new URL(url);
 
-			// Check if it's HTTP/HTTPS
 			if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
 				return false;
 			}
 
-			// Check for common image extensions
 			const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
 			const pathname = parsedUrl.pathname.toLowerCase();
 			const hasImageExtension = imageExtensions.some((ext) => pathname.endsWith(ext));
 
-			// Accept if has image extension or looks like an image service URL
 			const isImageService = /\.(googleapis|imgur|cloudinary|unsplash|pexels)\./.test(
 				parsedUrl.hostname,
 			);
@@ -1283,19 +1369,16 @@ export class MarkdownProcessor {
 	static parseImageDimension(dimension: string): number {
 		if (!dimension) return 0;
 
-		// Remove units and parse number
 		const numericValue = parseFloat(dimension.replace(/[^\d.]/g, ''));
 
 		if (isNaN(numericValue) || numericValue <= 0) {
 			return 0;
 		}
 
-		// Convert pixels to points if needed (1px = 0.75pt approximately)
 		if (dimension.toLowerCase().includes('px')) {
 			return numericValue * 0.75;
 		}
 
-		// Default to points or treat plain numbers as points
 		return numericValue;
 	}
 
