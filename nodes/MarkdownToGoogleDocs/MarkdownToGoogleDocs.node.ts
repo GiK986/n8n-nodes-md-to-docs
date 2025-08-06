@@ -13,7 +13,7 @@ import { MarkdownProcessor } from './markdown-processor';
 import { GoogleDocsAPI } from './google-docs-api';
 import { IAdditionalOptions } from './types';
 
-export class MarkdownToGoogleDocs implements INodeType {
+class MarkdownToGoogleDocs implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Markdown to Google Docs',
 		name: 'markdownToGoogleDocs',
@@ -200,3 +200,6 @@ export class MarkdownToGoogleDocs implements INodeType {
 		return [returnData];
 	}
 }
+
+// Ensure proper CommonJS export for n8n
+module.exports = { MarkdownToGoogleDocs };
