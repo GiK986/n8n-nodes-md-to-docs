@@ -28,9 +28,16 @@ Install in your n8n instance:
 npm install n8n-nodes-md-to-docs
 ```
 
-Restart n8n to load the new node.
+**⚠️ Important: Restart n8n server after installation** - The node requires a complete server restart to load properly.
+
+For self-hosted installations, make sure your n8n instance can install npm dependencies (cheerio, marked).
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+
+### Version Compatibility
+
+- **Latest (0.3.5+)**: Full compatibility with self-hosted n8n installations
+- **0.3.1-0.3.4**: Deprecated due to class loading issues - use 0.3.5+
 
 ---
 

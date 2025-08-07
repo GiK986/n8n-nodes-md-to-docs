@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] - 2025-08-06
+## [0.3.5] - 2025-08-07
+
+### Fixed
+
+- **Package Loading**: Resolved critical n8n compatibility issues
+  - Fixed "Class could not be found" errors in n8n installations
+  - Restored proper TypeScript named exports (exports.MarkdownToGoogleDocs)
+  - Added cheerio and marked as runtime dependencies for self-hosted installations
+  - Requires n8n server restart after installation for proper loading
+
+### Technical Notes
+
+- Versions 0.3.1-0.3.4 were deprecated due to class loading issues
+- Self-hosted n8n installations now work properly with runtime dependencies
+- Cloud version compatibility may require bundled approach (future consideration)
+
+## [0.3.1] - 2025-08-06 (DEPRECATED)
 
 ### Changed
 
