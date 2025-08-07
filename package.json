@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-md-to-docs",
-	"version": "0.3.4",
+	"version": "0.3.5",
 	"description": "This is an n8n community node. It lets you use **Markdown to Google Docs** conversion in your n8n workflows.",
 	"keywords": [
 		"n8n-community-node-package"
@@ -36,6 +36,10 @@
 		"nodes": [
 			"dist/nodes/MarkdownToGoogleDocs/MarkdownToGoogleDocs.node.js"
 		]
+	},
+	"dependencies": {
+		"cheerio": "^1.1.2",
+		"marked": "^16.0.0"
 	},
 	"devDependencies": {
 		"@types/jsdom": "^21.1.7",
