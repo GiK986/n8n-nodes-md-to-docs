@@ -235,3 +235,20 @@ export interface TextStyle {
 export interface ProcessListItemsResult {
 	items: LineItemList[];
 }
+
+export interface DocumentExportResult {
+	success: boolean;
+	documentId: string;
+	documentTitle: string;
+	exportFormat: string;
+	fileName: string;
+	content?: string | Buffer;
+	mimeType: string;
+	fileExtension: string;
+	fileSizeBytes: number;
+	message: string;
+	outputMode: 'content' | 'binary' | 'drive';
+	savedFileId?: string;
+	savedFileUrl?: string;
+	targetFolderId?: string;
+}

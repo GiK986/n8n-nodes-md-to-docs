@@ -229,4 +229,55 @@ export const resourceLocatorMethods = {
 			return { results: [] };
 		}
 	},
+
+	async getDocuments(
+		this: ILoadOptionsFunctions,
+		filter?: string,
+		paginationToken?: string,
+	): Promise<INodeListSearchResult> {
+		try {
+			const results: INodeListSearchItems[] = [];
+
+			const qs: IDataObject = {
+				q: `mimeType='application/vnd.google-apps.document' and trashed=false`,
+				pageSize: 100,
+				fields: 'files(id,name,modifiedTime)',
+				orderBy: 'modifiedTime desc',
+				pageToken: paginationToken,
+			};
+
+			if (filter) {
+				qs.q += ` and name contains '${filter.replace("'", "\\'")}'`;
+			}
+
+			const response = await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'googleDocsOAuth2Api',
+				{
+					method: 'GET' as IHttpRequestMethods,
+					url: 'https://www.googleapis.com/drive/v3/files',
+					qs,
+				},
+			);
+
+			if (response?.files && Array.isArray(response.files)) {
+				for (const doc of response.files) {
+					if (doc.name && doc.id) {
+						results.push({
+							name: doc.name as string,
+							value: doc.id as string,
+							url: `https://docs.google.com/document/d/${doc.id}/edit`,
+						});
+					}
+				}
+			}
+
+			return {
+				results,
+				paginationToken: response?.nextPageToken,
+			};
+		} catch (error) {
+			return { results: [] };
+		}
+	},
 };

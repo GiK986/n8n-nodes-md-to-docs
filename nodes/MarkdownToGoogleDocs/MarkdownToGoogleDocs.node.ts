@@ -11,6 +11,7 @@ import { markdownToDocsFields, markdownToDocsOperations } from './MarkdownToDocs
 import { resourceLocatorMethods } from './resource-locators';
 import { MarkdownProcessor } from './markdown-processor';
 import { GoogleDocsAPI } from './google-docs-api';
+import { GoogleDocsExporter } from './google-docs-exporter';
 import { IAdditionalOptions } from './types';
 
 export class MarkdownToGoogleDocs implements INodeType {
@@ -58,7 +59,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 				let markdownInput = '';
 				let documentTitle = '';
 
-				if (operation !== 'testCredentials') {
+				if (operation !== 'testCredentials' && operation !== 'exportGoogleDoc') {
 					markdownInput = this.getNodeParameter('markdownInput', itemIndex, '') as string;
 					documentTitle = this.getNodeParameter('documentTitle', itemIndex) as string;
 				}
@@ -66,6 +67,60 @@ export class MarkdownToGoogleDocs implements INodeType {
 				let result: any;
 
 				switch (operation) {
+					case 'exportGoogleDoc':
+						const documentIdParam = this.getNodeParameter('documentId', itemIndex) as any;
+						const exportFormat = this.getNodeParameter('exportFormat', itemIndex) as string;
+						const outputFileName = this.getNodeParameter('outputFileName', itemIndex, '') as string;
+						const outputOptions = this.getNodeParameter('outputOptions', itemIndex, {}) as any;
+
+						const documentId = typeof documentIdParam === 'object' ? documentIdParam.value : documentIdParam;
+
+						if (!documentId) {
+							throw new NodeOperationError(this.getNode(), 'Document ID is required', {
+								itemIndex,
+							});
+						}
+
+						const exportResult = await GoogleDocsExporter.exportGoogleDoc(
+							this,
+							documentId,
+							exportFormat,
+							outputFileName || undefined,
+							outputOptions,
+						);
+
+						// Handle binary data output automatically for PDF
+						if (exportResult.outputMode === 'binary' && exportResult.content) {
+							let contentBuffer: Buffer;
+							if (Buffer.isBuffer(exportResult.content)) {
+								contentBuffer = exportResult.content;
+							} else {
+								contentBuffer = Buffer.from(exportResult.content as string);
+							}
+
+							const binaryData = await this.helpers.prepareBinaryData(
+								contentBuffer,
+								exportResult.fileName,
+								exportResult.mimeType,
+							);
+
+							// Remove content from JSON and add binary data
+							const { content, ...resultWithoutContent } = exportResult;
+							result = resultWithoutContent;
+
+							returnData.push({
+								json: result,
+								binary: {
+									data: binaryData,
+								},
+								pairedItem: { item: itemIndex },
+							});
+							continue;
+						}
+
+						result = exportResult;
+						break;
+
 					case 'convertToApiRequests':
 						const outputFormat = this.getNodeParameter('outputFormat', itemIndex) as string;
 						result = MarkdownProcessor.convertMarkdownToApiRequests(

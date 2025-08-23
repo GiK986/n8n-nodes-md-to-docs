@@ -22,6 +22,12 @@ export const markdownToDocsOperations: INodeProperties[] = [
 				action: 'Convert markdown to google docs api requests',
 			},
 			{
+				name: 'Export Google Doc',
+				value: 'exportGoogleDoc',
+				description: 'Export a Google Docs document to various formats',
+				action: 'Export google docs document to different formats',
+			},
+			{
 				name: 'Test API Permissions',
 				value: 'testCredentials',
 				description: 'Test Google API permissions required for document creation and folder access',
@@ -40,7 +46,7 @@ const documentTitleProperty: INodeProperties = {
 	description: 'Title for the Google Docs document',
 	displayOptions: {
 		hide: {
-			operation: ['testCredentials'],
+			operation: ['testCredentials', 'exportGoogleDoc'],
 		},
 	},
 };
@@ -60,7 +66,7 @@ const markdownInputProperty: INodeProperties = {
 			operation: ['createDocument', 'convertToApiRequests'],
 		},
 		hide: {
-			operation: ['testCredentials'],
+			operation: ['testCredentials', 'exportGoogleDoc'],
 		},
 	},
 };
@@ -314,6 +320,180 @@ const convertToApiRequestsOperation: INodeProperties[] = [
 	},
 ];
 
+// Properties for exportGoogleDoc operation
+const exportGoogleDocOperation: INodeProperties[] = [
+	{
+		displayName: 'Document',
+		name: 'documentId',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		displayOptions: {
+			show: {
+				operation: ['exportGoogleDoc'],
+			},
+		},
+		modes: [
+			{
+				displayName: 'Document',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a document...',
+				typeOptions: {
+					searchListMethod: 'getDocuments',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'Link',
+				name: 'url',
+				type: 'string',
+				placeholder: 'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
+				extractValue: {
+					type: 'regex',
+					regex: /(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/document\/d\/([a-zA-Z0-9-_]+)/,
+				},
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: /(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/document\/d\/([a-zA-Z0-9-_]+)/,
+							errorMessage: 'Not a valid Google Doc URL',
+						},
+					},
+				],
+			},
+			{
+				displayName: 'ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '[a-zA-Z0-9\\-_]{10,}',
+							errorMessage: 'Not a valid Google Doc ID',
+						},
+					},
+				],
+				url: '=https://docs.google.com/document/d/{{$value}}/edit',
+			},
+		],
+		description: 'The Google Docs document to export',
+	},
+	{
+		displayName: 'Export Format',
+		name: 'exportFormat',
+		type: 'options',
+		options: [
+			{
+				name: 'Markdown',
+				value: 'text/markdown',
+				description: 'Export as Markdown (.md)',
+			},
+			{
+				name: 'PDF',
+				value: 'application/pdf',
+				description: 'Export as PDF (.pdf)',
+			},
+			{
+				name: 'Plain Text',
+				value: 'text/plain',
+				description: 'Export as plain text (.txt)',
+			},
+		],
+		default: 'text/markdown',
+		displayOptions: {
+			show: {
+				operation: ['exportGoogleDoc'],
+			},
+		},
+		description: 'The format to export the document to',
+	},
+	{
+		displayName: 'Output File Name',
+		name: 'outputFileName',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. my-document (optional - uses document title if empty)',
+		displayOptions: {
+			show: {
+				operation: ['exportGoogleDoc'],
+			},
+		},
+		description: 'Custom filename for the exported file (optional - will use document title if empty)',
+	},
+	{
+		displayName: 'Output Options',
+		name: 'outputOptions',
+		type: 'collection',
+		placeholder: 'Add Output Options',
+		default: {},
+		displayOptions: {
+			show: {
+				operation: ['exportGoogleDoc'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Save to Google Drive Folder',
+				name: 'targetFolderId',
+				type: 'resourceLocator',
+				default: { mode: 'list', value: '' },
+				modes: [
+					{
+						displayName: 'Folder',
+						name: 'list',
+						type: 'list',
+						placeholder: 'Select a folder...',
+						typeOptions: {
+							searchListMethod: 'getFolders',
+							searchable: true,
+						},
+					},
+					{
+						displayName: 'Link',
+						name: 'url',
+						type: 'string',
+						placeholder: 'e.g. https://drive.google.com/drive/folders/1Tx9WHbA3wBpPB4C_HcoZDH9WZFWYxAMU',
+						extractValue: {
+							type: 'regex',
+							regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+						},
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+									errorMessage: 'Not a valid Google Drive Folder URL',
+								},
+							},
+						],
+					},
+					{
+						displayName: 'ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. 1anGBg0b5re2VtF2bKu201_a-Vnz5BHq9Y4r-yBDAj5A',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '[a-zA-Z0-9\\-_]{2,}',
+									errorMessage: 'Not a valid Google Drive Folder ID',
+								},
+							},
+						],
+						url: '=https://drive.google.com/drive/folders/{{$value}}',
+					},
+				],
+				description: 'Save the exported file to this Google Drive folder (optional)',
+			},
+		],
+	},
+];
+
 // Properties for createDocument operation
 const createDocumentOperation: INodeProperties[] = [
 	// Group 1: Core Document Details
@@ -451,6 +631,11 @@ export const markdownToDocsFields: INodeProperties[] = [
 	/*                          createDocument Operation                          */
 	/* -------------------------------------------------------------------------- */
 	...createDocumentOperation,
+
+	/* -------------------------------------------------------------------------- */
+	/*                         exportGoogleDoc Operation                          */
+	/* -------------------------------------------------------------------------- */
+	...exportGoogleDocOperation,
 
 	/* -------------------------------------------------------------------------- */
 	/*                            Common Properties                               */
