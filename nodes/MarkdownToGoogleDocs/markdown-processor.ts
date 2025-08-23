@@ -705,8 +705,8 @@ export class MarkdownProcessor {
 			if (checkboxPrefix && lines.length > 0) {
 				lines[0].text = checkboxPrefix + lines[0].text;
 				for (const range of lines[0].formatRanges) {
-					range.start += checkboxPrefix.length;
-					range.end += checkboxPrefix.length;
+					range.start += checkboxPrefix.length - 1;
+					range.end += checkboxPrefix.length - 1;
 				}
 			}
 
