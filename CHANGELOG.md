@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2025-08-23
+
+### Fixed
+
+- **List Index Calculations**: Fixed incorrect index calculations for list elements after bullet processing
+  - Corrected calculateNewIndex() method to properly account for tab removal in bullet lists
+  - Resolved paragraph styling range errors that occurred when tabs are stripped by Google Docs API
+  - Lists with nested items now render with correct formatting and spacing
+
 ## [0.3.5] - 2025-08-07
 
 ### Fixed
