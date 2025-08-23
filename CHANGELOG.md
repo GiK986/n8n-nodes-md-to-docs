@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-08-23
+
+### Added
+
+- **Google Docs Export Operation**: New `exportGoogleDoc` operation to export existing Google Docs to various formats
+  - Export to Markdown (.md), PDF (.pdf), or Plain Text (.txt)
+  - Automatic output mode determination (content for text formats, binary for PDF)
+  - Optional Google Drive save functionality with folder selection
+  - Document resource locator for easy document selection (list/URL/ID modes)
+  - Custom filename support with Unicode character handling
+  - Proper binary data handling for PDF exports in n8n workflows
+
+### Fixed
+
+- **Checkbox Formatting**: Fixed formatting range calculation for bold text in checkbox list items
+  - Adjusted range start/end by -1 offset to account for checkbox prefix positioning
+  - Bold text in `- [x] **task**` format now renders correctly in Google Docs
+
+### Technical
+
+- Added DocumentExportResult interface for type safety
+- Created GoogleDocsExporter class for export operations
+- Extended resource locators with getDocuments method for document selection
+- Enhanced main node with export operation handling and binary data processing
+
 ## [0.3.6] - 2025-08-23
 
 ### Fixed

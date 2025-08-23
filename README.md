@@ -44,6 +44,7 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 ## Operations
 
 - **Create Document**: Instantly create a Google Docs document from Markdown content.
+- **Export Google Doc**: Export existing Google Docs to Markdown, PDF, or Plain Text formats.
 - **Convert to API Requests**: Transform Markdown into Google Docs API request JSON (for advanced HTTP Request node usage).
 - **Test Credentials**: Verify your Google API credentials and permissions.
 
@@ -302,12 +303,14 @@ console.log(greeting);
 
 | Parameter | Type | Description |
 |---|---|---|
-| `operation` | options | "convertToApiRequests" or "createDocument" |
-| `driveId` | resourceLocator | The Google Drive to create the document in. |
-| `folderId` | resourceLocator | The folder within the selected drive. |
-| `documentTitle` | string | Title for the Google Docs document |
-| `markdownInput` | string | The Markdown content to convert |
-| `outputFormat`  | options | "single" or "multiple" request format      |
+| `operation` | options | "createDocument", "exportGoogleDoc", "convertToApiRequests", or "testCredentials" |
+| `driveId` | resourceLocator | The Google Drive to create the document in (create operation) |
+| `folderId` | resourceLocator | The folder within the selected drive (create operation) |
+| `documentId` | resourceLocator | The Google Docs document to export (export operation) |
+| `exportFormat` | options | Export format: "text/markdown", "application/pdf", or "text/plain" (export operation) |
+| `documentTitle` | string | Title for the Google Docs document (create operation) |
+| `markdownInput` | string | The Markdown content to convert (create operation) |
+| `outputFormat`  | options | "single" or "multiple" request format (convert operation) |
 
 ### Advanced Options (`additionalOptions`)
 
@@ -383,6 +386,7 @@ npm link n8n-nodes-md-to-docs
 - [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
 - [x] **Template and Text Placeholder System**: Create documents from a template, preserving headers/footers and replacing dynamic text `{{placeholders}}`.
 - [x] **Enhanced List Support**: Flawless rendering of multi-line and deeply nested list items with accurate inline formatting.
+- [x] **Google Docs Export**: Export existing Google Docs to Markdown, PDF, or Plain Text with automatic output handling and optional Drive save.
 
 🚀 **Future Enhancements**
 
@@ -390,7 +394,7 @@ npm link n8n-nodes-md-to-docs
 - [ ] **Advanced Table Features**: Column alignment, table styling options, merged cells
 - [ ] **Custom Styling**: User-defined fonts, colors, and spacing
 - [ ] **Batch Processing**: Handle multiple Markdown files in a single operation
-- [ ] **Export Options**: Support for additional output formats (PDF, DOCX)
+- [ ] **Batch Export**: Export multiple documents or entire folders at once
 - [ ] **Collaborative Features**: Document sharing and permission management
 
 ---
