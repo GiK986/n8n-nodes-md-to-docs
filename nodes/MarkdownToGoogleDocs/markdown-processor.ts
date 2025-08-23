@@ -612,9 +612,9 @@ export class MarkdownProcessor {
 			requests.push({
 				updateParagraphStyle: {
 					range: {
-						startIndex: firstItemMeta.startIndex - totalTabsRemoved,
+						startIndex: firstItemMeta.startIndex,
 						endIndex:
-							firstItemMeta.startIndex - totalTabsRemoved + firstItemMeta.textToInsert.length,
+							firstItemMeta.startIndex + firstItemMeta.textToInsert.length,
 					},
 					paragraphStyle: {
 						spaceAbove: { magnitude: 12, unit: 'PT' },
@@ -1189,8 +1189,13 @@ export class MarkdownProcessor {
 			lastInsertTextRequest.insertText.location
 		) {
 			const lastIndex = lastInsertTextRequest.insertText.location.index;
-			const lastTextLength = lastInsertTextRequest.insertText.text.length;
-			let newIndex = lastIndex + lastTextLength;
+			const hasCreateParagraphBullets = requests.some((req) => req.createParagraphBullets);
+
+			const lastTextLength = hasCreateParagraphBullets
+				? lastInsertTextRequest.insertText.text.replace(/\t/g, '').length
+				: lastInsertTextRequest.insertText.text.length;
+
+			const newIndex = lastIndex + lastTextLength;
 
 			return newIndex;
 		}
