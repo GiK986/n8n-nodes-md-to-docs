@@ -889,12 +889,12 @@ export class MarkdownProcessor {
 						currentCellIndex += cellData.content.length + 2;
 					} else {
 						// Empty cell
-						requests.push({
-							insertText: {
-								location: { index: textPosition },
-								text: '\n',
-							},
-						});
+						// requests.push({
+						// 	insertText: {
+						// 		location: { index: textPosition },
+						// 		text: '',
+						// 	},
+						// });
 						currentCellIndex += 2;
 					}
 				}
