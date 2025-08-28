@@ -123,10 +123,19 @@ export class MarkdownToGoogleDocs implements INodeType {
 
 					case 'convertToApiRequests':
 						const outputFormat = this.getNodeParameter('outputFormat', itemIndex) as string;
+						const additionalOptionsConvert = this.getNodeParameter(
+							'additionalOptions',
+							itemIndex,
+							{},
+						) as IAdditionalOptions;
+						
 						result = MarkdownProcessor.convertMarkdownToApiRequests(
 							markdownInput,
 							documentTitle,
 							outputFormat,
+							1,
+							additionalOptionsConvert.pageBreakSettings?.values?.pageBreakStrategy,
+							additionalOptionsConvert.pageBreakSettings?.values?.customPageBreakText,
 						);
 						break;
 
@@ -220,6 +229,8 @@ export class MarkdownToGoogleDocs implements INodeType {
 							useTemplate ? templateDocumentId : undefined,
 							usePlaceholders ? placeholderData : undefined,
 							usePlaceholders && useMarkdownInput ? mainContentPlaceholder : undefined,
+							additionalOptions.pageBreakSettings?.values?.pageBreakStrategy,
+							additionalOptions.pageBreakSettings?.values?.customPageBreakText,
 						);
 						break;
 

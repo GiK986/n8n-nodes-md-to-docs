@@ -278,6 +278,62 @@ const additionalOptions: INodeProperties = {
 				},
 			],
 		},
+		// Page Break Settings
+		{
+			displayName: 'Page Break Settings',
+			name: 'pageBreakSettings',
+			type: 'fixedCollection',
+			default: {},
+			placeholder: 'Add Page Break Settings',
+			typeOptions: {
+				multipleValues: false,
+			},
+			options: [
+				{
+					name: 'values',
+					displayName: 'Values',
+					values: [
+						{
+							displayName: 'Page Break Strategy',
+							name: 'pageBreakStrategy',
+							type: 'options',
+							default: 'h2',
+							options: [
+								{
+									name: 'Before H1 Headings',
+									value: 'h1',
+									description: 'Add page break before each H1 heading (except first)',
+								},
+								{
+									name: 'Before H2 Headings',
+									value: 'h2',
+									description: 'Add page break before each H2 heading',
+								},
+								{
+									name: 'Custom Text Replacement',
+									value: 'custom',
+									description: 'Replace custom text markers with page breaks',
+								},
+							],
+							description: 'Strategy for inserting page breaks in the document',
+						},
+						{
+							displayName: 'Custom Page Break Text',
+							name: 'customPageBreakText',
+							type: 'string',
+							default: '<!-- pagebreak -->',
+							placeholder: 'e.g. <!-- pagebreak --> or ---pagebreak---',
+							displayOptions: {
+								show: {
+									pageBreakStrategy: ['custom'],
+								},
+							},
+							description: 'Custom text that will be replaced with page breaks',
+						},
+					],
+				},
+			],
+		},
 	],
 	displayOptions: {
 		show: {

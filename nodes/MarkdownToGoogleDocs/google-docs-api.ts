@@ -15,6 +15,8 @@ export class GoogleDocsAPI {
 		templateDocumentId?: string,
 		placeholderData?: any,
 		mainContentPlaceholder?: string,
+		pageBreakStrategy?: string,
+		customPageBreakText?: string,
 	): Promise<DocumentCreationResult> {
 		try {
 			let documentId: string;
@@ -202,6 +204,8 @@ export class GoogleDocsAPI {
 					'',
 					'single',
 					markdownInsertIndex,
+					pageBreakStrategy,
+					customPageBreakText,
 				);
 
 				if (apiRequests.batchUpdateRequest.requests.length > 0) {

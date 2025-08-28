@@ -25,9 +25,19 @@ export class MarkdownProcessor {
 		documentTitle: string,
 		outputFormat: string,
 		initialInsertIndex: number = 1,
+		pageBreakStrategy?: string,
+		customPageBreakText?: string,
 	): ConversionResult {
 		// Fix escaped characters from n8n
-		const cleanMarkdown = markdownInput.replace('\`', '`').replace('\n\n', '\n');
+		let cleanMarkdown = markdownInput.replace('\`', '`').replace('\n\n', '\n');
+
+		// Handle custom page breaks if strategy is 'custom'
+		if (pageBreakStrategy === 'custom' && customPageBreakText) {
+			cleanMarkdown = cleanMarkdown.replace(
+				new RegExp(this.escapeRegex(customPageBreakText), 'g'),
+				'<pagebreak></pagebreak>',
+			);
+		}
 
 		// Convert markdown to HTML
 		const html = marked.parse(cleanMarkdown, { async: false }) as string;
@@ -37,16 +47,28 @@ export class MarkdownProcessor {
 
 		const requests: GoogleDocsRequest[] = [];
 		let insertIndex = initialInsertIndex;
+		let firstH1Found = false;
 
 		// Process HTML elements - cheerio equivalent of document.body.childNodes
 		$('body')
 			.children()
 			.each((_index, element) => {
-				const elementRequests = this.processHtmlElement(element, insertIndex, $);
+				const elementRequests = this.processHtmlElement(
+					element,
+					insertIndex,
+					$,
+					pageBreakStrategy,
+					{ firstH1Found }
+				);
 				if (elementRequests && elementRequests.length > 0) {
 					requests.push(...elementRequests);
 					// Update insertIndex based on text content added
 					insertIndex = this.calculateNewIndex(elementRequests);
+
+					// Update tracking for first H1
+					if (isTag(element) && element.tagName === 'h1') {
+						firstH1Found = true;
+					}
 				}
 			});
 
@@ -84,6 +106,8 @@ export class MarkdownProcessor {
 		element: Element | ChildNode,
 		insertIndex: number,
 		$: cheerio.CheerioAPI,
+		pageBreakStrategy?: string,
+		headingTracker?: { firstH1Found: boolean },
 	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 
@@ -107,13 +131,17 @@ export class MarkdownProcessor {
 		}
 
 		switch (element.name.toUpperCase()) {
+			case 'PAGEBREAK':
+				// Insert page break for custom strategy
+				return this.processPageBreak(insertIndex);
+
 			case 'H1':
 			case 'H2':
 			case 'H3':
 			case 'H4':
 			case 'H5':
 			case 'H6':
-				return this.processHeading(element, insertIndex, $);
+				return this.processHeading(element, insertIndex, $, pageBreakStrategy, headingTracker);
 
 			case 'P':
 				return this.processParagraph(element, insertIndex, $);
@@ -161,31 +189,56 @@ export class MarkdownProcessor {
 		element: Element,
 		insertIndex: number,
 		$: cheerio.CheerioAPI,
+		pageBreakStrategy?: string,
+		headingTracker?: { firstH1Found: boolean },
 	): GoogleDocsRequest[] {
+		const requests: GoogleDocsRequest[] = [];
 		const text = $(element).text();
 		const headingLevel = parseInt(element.tagName!.charAt(1));
 		const headingText = text + '\n';
 
-		return [
-			{
-				insertText: {
+		// Check if we need to add page break before this heading
+		const shouldAddPageBreak = this.shouldAddPageBreakBeforeHeading(
+			element.tagName!.toUpperCase(),
+			pageBreakStrategy,
+			headingTracker
+		);
+
+		let headingInsertIndex = insertIndex;
+
+		// First: Add page break if needed (at current insertIndex)
+		if (shouldAddPageBreak) {
+			requests.push({
+				insertPageBreak: {
 					location: { index: insertIndex },
-					text: headingText,
 				},
+			});
+			headingInsertIndex = insertIndex + 2; // Heading comes after page break
+		}
+
+		// Second: Add the heading
+		requests.push({
+			insertText: {
+				location: { index: headingInsertIndex },
+				text: headingText,
 			},
-			{
-				updateParagraphStyle: {
-					range: {
-						startIndex: insertIndex,
-						endIndex: insertIndex + text.length,
-					},
-					paragraphStyle: {
-						namedStyleType: this.getHeadingStyleType(headingLevel),
-					},
-					fields: 'namedStyleType',
+		});
+
+		// Third: Style the heading
+		requests.push({
+			updateParagraphStyle: {
+				range: {
+					startIndex: headingInsertIndex,
+					endIndex: headingInsertIndex + text.length,
 				},
+				paragraphStyle: {
+					namedStyleType: this.getHeadingStyleType(headingLevel),
+				},
+				fields: 'namedStyleType',
 			},
-		];
+		});
+
+		return requests;
 	}
 
 	/**
@@ -198,8 +251,14 @@ export class MarkdownProcessor {
 	): GoogleDocsRequest[] {
 		const requests: GoogleDocsRequest[] = [];
 
-		// Check if paragraph contains images or inline formatting
+		// Check if paragraph contains only pagebreak element
 		const $element = $(element);
+		const pageBreakElements = $element.find('pagebreak');
+		if (pageBreakElements.length > 0 && $element.text().trim() === '') {
+			return this.processPageBreak(insertIndex);
+		}
+
+		// Check if paragraph contains images or inline formatting
 		const imgElements = $element.find('img');
 
 		if (imgElements.length > 0 || this.hasInlineFormatting(element, $)) {
@@ -1181,26 +1240,26 @@ export class MarkdownProcessor {
 	 * Calculate new insert index after adding requests
 	 */
 	static calculateNewIndex(requests: GoogleDocsRequest[]): number {
-		const lastInsertTextRequest = requests.filter((req) => req.insertText).pop();
+		let maxIndex = 1;
 
-		if (
-			lastInsertTextRequest &&
-			lastInsertTextRequest.insertText &&
-			lastInsertTextRequest.insertText.location
-		) {
-			const lastIndex = lastInsertTextRequest.insertText.location.index;
-			const hasCreateParagraphBullets = requests.some((req) => req.createParagraphBullets);
+		// Find the highest index from all insertion requests
+		for (const request of requests) {
+			if (request.insertText && request.insertText.location) {
+				const textIndex = request.insertText.location.index;
+				const hasCreateParagraphBullets = requests.some((req) => req.createParagraphBullets);
+				const textLength = hasCreateParagraphBullets
+					? request.insertText.text.replace(/\t/g, '').length
+					: request.insertText.text.length;
+				maxIndex = Math.max(maxIndex, textIndex + textLength);
+			}
 
-			const lastTextLength = hasCreateParagraphBullets
-				? lastInsertTextRequest.insertText.text.replace(/\t/g, '').length
-				: lastInsertTextRequest.insertText.text.length;
-
-			const newIndex = lastIndex + lastTextLength;
-
-			return newIndex;
+			if (request.insertPageBreak && request.insertPageBreak.location) {
+				// Page break takes 1 position
+				maxIndex = Math.max(maxIndex, request.insertPageBreak.location.index + 2);
+			}
 		}
 
-		return 1;
+		return maxIndex;
 	}
 
 	/**
@@ -1393,5 +1452,47 @@ export class MarkdownProcessor {
 	static getHeadingStyleType(depth: number): string {
 		const styles = ['HEADING_1', 'HEADING_2', 'HEADING_3', 'HEADING_4', 'HEADING_5', 'HEADING_6'];
 		return styles[depth - 1] || 'NORMAL_TEXT';
+	}
+
+	/**
+	 * Process page break insertion
+	 */
+	static processPageBreak(insertIndex: number): GoogleDocsRequest[] {
+		return [
+			{
+				insertPageBreak: {
+					location: { index: insertIndex },
+				},
+			},
+		];
+	}
+
+	/**
+	 * Check if a page break should be added before a heading
+	 */
+	static shouldAddPageBreakBeforeHeading(
+		tagName: string,
+		pageBreakStrategy?: string,
+		headingTracker?: { firstH1Found: boolean },
+	): boolean {
+		if (!pageBreakStrategy || !headingTracker) {
+			return false;
+		}
+
+		switch (pageBreakStrategy) {
+			case 'h1':
+				return tagName === 'H1' && headingTracker.firstH1Found;
+			case 'h2':
+				return tagName === 'H2';
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Escape special regex characters for string replacement
+	 */
+	static escapeRegex(str: string): string {
+		return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 }

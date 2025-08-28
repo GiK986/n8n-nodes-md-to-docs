@@ -134,6 +134,9 @@ export interface GoogleDocsRequest {
 		rows: number;
 		columns: number;
 	};
+	insertPageBreak?: {
+		location: { index: number };
+	};
 }
 
 export interface IAdditionalOptions {
@@ -150,6 +153,12 @@ export interface IAdditionalOptions {
 					};
 				};
 			};
+		};
+	};
+	pageBreakSettings?: {
+		values: {
+			pageBreakStrategy?: string;
+			customPageBreakText?: string;
 		};
 	};
 }
