@@ -155,7 +155,8 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 **🚀 Advanced Features**:
 
 - **Nested Formatting**: Complex combinations like **bold and *italic* together**
-- **Smart Tables**: Header styling (bold + centered) with full cell formatting
+- **Smart Tables**: Header styling (bold + centered) with full cell formatting and vertical alignment
+- **Page Break Control**: Multiple strategies for automatic page breaks (H1, H2, or custom text markers)
 - **Deep Nesting**: Unlimited list levels with proper indentation
 - **Image Embedding**: Direct URL-based image insertion with optional sizing
 - **Checkbox Lists**: Native Google Docs checkboxes for task lists
@@ -213,7 +214,7 @@ const googleDocsRequests = MarkdownProcessor.convertMarkdownToApiRequests(
 | `- lists` / `1. lists`  | Bulleted/numbered with unlimited nesting and multi-line items | ✅      |
 | `- [x]` / `- [ ]`       | Native Google Docs checkboxes                                 | ✅      |
 | `` `code` ``            | Monospace formatting + syntax highlighting                    | ✅      |
-| `\| tables \|`          | Structured tables with header styling                         | ✅      |
+| `\| tables \|`          | Structured tables with header styling and vertical alignment  | ✅      |
 | `> quotes`              | Indented blockquote with internal formatting                  | ✅      |
 | `---`                   | Horizontal rules                                              | ✅      |
 | `![images](url)`        | Embedded images (URL only)                                    | ✅      |
@@ -325,6 +326,13 @@ The `additionalOptions` parameter provides access to advanced features like temp
       - **`useMarkdownInput`** (`boolean`): Whether to use the Markdown content. If disabled, the node only replaces placeholders.
       - **`mainContentPlaceholder`** (`string`): The specific placeholder (e.g., `{{MainContent}}`) to be replaced by the Markdown content. If not specified, the entire document body is replaced.
 
+- **`pageBreakSettings`** (`fixedCollection`): Controls automatic page break insertion.
+  - **`pageBreakStrategy`** (`options`): Choose when to insert page breaks:
+    - `"h1"`: Before each H1 heading (except the first)
+    - `"h2"`: Before each H2 heading (default)
+    - `"custom"`: Replace custom text markers with page breaks
+  - **`customPageBreakText`** (`string`): Custom text marker to replace with page breaks (e.g., `"<!-- pagebreak -->"`, `"---pagebreak---"`). Only used when strategy is "custom".
+
 ---
 
 ## 🛠️ Development
@@ -376,6 +384,8 @@ npm link n8n-nodes-md-to-docs
 ✅ **Completed Features**
 
 - [x] **Advanced Table Support**: Complete table conversion with header formatting (bold + centered) and cell-level formatting
+- [x] **Table Vertical Alignment**: Global vertical centering for all table cells with preserved header styling
+- [x] **Page Break Control**: Multiple strategies for automatic page breaks (H1, H2, or custom text markers)
 - [x] **Nested Formatting**: Complex combinations like **bold and *italic* together** with perfect range calculations
 - [x] **Deep List Nesting**: Unlimited levels of nested lists with proper Google Docs bullet handling
 - [x] **Smart Range Calculations**: Precise text positioning accounting for Google Docs API behavior

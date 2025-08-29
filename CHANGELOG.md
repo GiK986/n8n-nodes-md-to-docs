@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-08-29
+
+### Added
+
+- **Page Break Control**: New page break functionality with multiple strategies
+  - **H2 Strategy**: Automatically insert page breaks before each H2 heading (default)
+  - **H1 Strategy**: Insert page breaks before each H1 heading (except the first)
+  - **Custom Strategy**: Replace custom text markers (e.g., `<!-- pagebreak -->`) with page breaks
+  - New `Page Break Settings` in Additional Options with grouped UI using fixedCollection
+  - Proper index calculation accounting for page breaks taking 2 positions (break + newline)
+
+- **Table Vertical Alignment**: Global vertical centering for all table cells
+  - All table cells now have `contentAlignment: "MIDDLE"` for consistent vertical centering
+  - Preserves existing header row formatting (bold + horizontal center + vertical center)
+  - Uses proper Google Docs API `updateTableCellStyle` with correct `tableRange` structure
+  - Applied after table content creation for proper API sequencing
+
+### Technical
+
+- Extended `GoogleDocsRequest` type with `insertPageBreak` and `updateTableCellStyle` interfaces
+- Added page break processing logic in `processHeading` with proper index management
+- Updated `calculateNewIndex` to account for page break positioning
+- Implemented custom text replacement for page break markers using regex escaping
+- Added support for `tableStartLocation` with correct index offset (+1) for table styling
+
+### Fixed
+
+- **Empty Table Cell Handling**: Removed unnecessary text insertion for empty table cells
+- **Page Break Positioning**: Correct sequence of page break → heading → content for clean document flow
+- **Table Cell Index Calculation**: Fixed `tableStartLocation` index to use `insertIndex + 1` for proper API compatibility
+
 ## [0.4.0] - 2025-08-23
 
 ### Added
