@@ -137,6 +137,21 @@ export interface GoogleDocsRequest {
 	insertPageBreak?: {
 		location: { index: number };
 	};
+	updateTableCellStyle?: {
+		tableRange: {
+			tableCellLocation: {
+				tableStartLocation: { index: number };
+				rowIndex: number;
+				columnIndex: number;
+			};
+			columnSpan?: number;
+			rowSpan?: number;
+		};
+		tableCellStyle: {
+			contentAlignment?: string;
+		};
+		fields: string;
+	};
 }
 
 export interface IAdditionalOptions {

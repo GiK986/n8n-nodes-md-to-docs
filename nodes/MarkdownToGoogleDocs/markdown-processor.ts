@@ -968,6 +968,29 @@ export class MarkdownProcessor {
 					text: '\n',
 				},
 			});
+
+			// Add vertical alignment to all table cells (AFTER all table content is added)
+			for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+				for (let colIndex = 0; colIndex < tableData[rowIndex].length; colIndex++) {
+					requests.push({
+						updateTableCellStyle: {
+							tableRange: {
+								tableCellLocation: {
+									tableStartLocation: { index: insertIndex + 1 },
+									rowIndex: rowIndex,
+									columnIndex: colIndex,
+								},
+								columnSpan: 1,
+								rowSpan: 1,
+							},
+							tableCellStyle: {
+								contentAlignment: 'MIDDLE',
+							},
+							fields: 'contentAlignment',
+						},
+					});
+				}
+			}
 		} catch (error) {
 			// Fallback: Insert table as formatted text
 			return this.processTableAsText(
