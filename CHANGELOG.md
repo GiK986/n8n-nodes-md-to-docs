@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-09-10
+
+### Fixed
+
+- **Shared Drive Support**: Fixed timeout issues when creating documents in Google Shared Drives
+  - Added automatic detection of Shared Drive operations based on `driveId` parameter
+  - Include required `supportsAllDrives` and `includeItemsFromAllDrives` parameters for Shared Drive API calls
+  - Applied fix to template copying, document creation, and folder name fetching operations
+  - Maintains full backward compatibility with My Drive operations
+
 ## [0.5.0] - 2025-08-29
 
 ### Added

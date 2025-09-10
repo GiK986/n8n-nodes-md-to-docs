@@ -111,6 +111,7 @@ This node requires Google API credentials to authenticate with Google Docs and G
 **Known Compatibility:**
 
 - ✅ **Google APIs**: Docs API v1, Drive API v3
+- ✅ **Google Drive Types**: My Drive, Shared Drives, and Shared with Me
 - ✅ **Modern Browsers**: Chrome 90+, Firefox 88+, Safari 14+
 - ✅ **AI Agents**: Compatible with `usableAsTool: true`
 - ✅ **Community Nodes**: Full n8n community node standards
