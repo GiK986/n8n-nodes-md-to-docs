@@ -5,6 +5,10 @@ import type { DocumentCreationResult } from './types';
 import type { GoogleDocsRequest } from './types';
 
 export class GoogleDocsAPI {
+	// Helper function to determine if Shared Drive parameters are needed
+	static needsSharedDriveParams(driveId: string): boolean {
+		return !!(driveId && driveId !== 'My Drive' && driveId !== 'sharedWithMe');
+	}
 	static async createGoogleDocsDocumentWithAPI(
 		executeFunctions: IExecuteFunctions,
 		markdownInput: string,
@@ -24,6 +28,13 @@ export class GoogleDocsAPI {
 
 			if (templateDocumentId) {
 				// Step 1: Copy the template
+				const needsSharedDrive = this.needsSharedDriveParams(driveId);
+				const copyQueryParams: any = {};
+				if (needsSharedDrive) {
+					copyQueryParams.supportsAllDrives = true;
+					copyQueryParams.includeItemsFromAllDrives = true;
+				}
+
 				const copyResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
 					'googleDocsOAuth2Api',
@@ -31,6 +42,7 @@ export class GoogleDocsAPI {
 						method: 'POST' as IHttpRequestMethods,
 						url: `https://www.googleapis.com/drive/v3/files/${templateDocumentId}/copy`,
 						body: { name: documentTitle, parents: [folderId] },
+						qs: copyQueryParams,
 					},
 				);
 				documentId = copyResponse.id;
@@ -151,6 +163,14 @@ export class GoogleDocsAPI {
 						...(folderId && folderId !== 'root' ? { parents: [folderId] } : {}),
 					};
 
+					// Add Shared Drive parameters if needed
+					const needsSharedDrive = this.needsSharedDriveParams(driveId);
+					const createQueryParams: any = {};
+					if (needsSharedDrive) {
+						createQueryParams.supportsAllDrives = true;
+						createQueryParams.includeItemsFromAllDrives = true;
+					}
+
 					const documentResponse =
 						await executeFunctions.helpers.httpRequestWithAuthentication.call(
 							executeFunctions,
@@ -159,6 +179,7 @@ export class GoogleDocsAPI {
 								method: 'POST' as IHttpRequestMethods,
 								url: 'https://www.googleapis.com/drive/v3/files',
 								body: createDocumentRequest,
+								qs: createQueryParams,
 								headers: {
 									'Content-Type': 'application/json',
 								},
@@ -176,15 +197,21 @@ export class GoogleDocsAPI {
 			if (!folderName && folderId !== 'root') {
 				try {
 					// Try to get folder name via API
+					const needsSharedDrive = this.needsSharedDriveParams(driveId);
+					const folderQueryParams: any = {
+						fields: 'name',
+					};
+					if (needsSharedDrive) {
+						folderQueryParams.supportsAllDrives = true;
+					}
+
 					const folderResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
 						'googleDocsOAuth2Api',
 						{
 							method: 'GET' as IHttpRequestMethods,
 							url: `https://www.googleapis.com/drive/v3/files/${folderId}`,
-							qs: {
-								fields: 'name',
-							},
+							qs: folderQueryParams,
 						},
 					);
 					finalFolderName = folderResponse.name;
