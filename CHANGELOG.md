@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2025-09-11
+
+### Fixed
+
+- **Shared Drive API Optimization**: Simplified and optimized Google Drive API parameter handling
+  - Removed conditional `needsSharedDriveParams` logic - now always applies `supportsAllDrives` and `includeItemsFromAllDrives` parameters for all Drive API calls
+  - These parameters are safely ignored for personal accounts and enable proper Shared Drive access for enterprise accounts
+  - Removed unnecessary parameters from Google Docs API calls (batchUpdate operations don't need Drive-specific parameters)
+- **Enhanced Error Handling**: Added comprehensive error logging and specific error messages for document creation failures
+  - Added detailed console logging for debugging document creation issues
+  - Improved error messages with specific guidance for 404 (folder not found) and 403 (permission denied) errors
+- **Resource Locator Improvements**: Better folder listing behavior for Shared Drives
+  - Fixed root folder display logic to only show for My Drive operations
+  - Added proper corpora parameter for Shared Drive folder searches
+- **OAuth Scope Update**: Changed from `drive.file` to `drive` scope for broader Google Drive access
+
+### Technical
+
+- Cleaned up API parameter handling across all Google Drive operations
+- Enhanced credential testing with comprehensive Shared Drive support verification
+- Improved folder name resolution with proper Drive API parameters
+
 ## [0.5.1] - 2025-09-10
 
 ### Fixed
