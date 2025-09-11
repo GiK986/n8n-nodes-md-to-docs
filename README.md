@@ -81,7 +81,7 @@ This node requires Google API credentials to authenticate with Google Docs and G
 
 2. **🔐 Create OAuth2 Credentials** with required scopes:
    - `https://www.googleapis.com/auth/documents`
-   - `https://www.googleapis.com/auth/drive.file`
+   - `https://www.googleapis.com/auth/drive`
 
 3. **⚡ Configure Credential** in n8n:
    - Add new **Google OAuth2 API** credential

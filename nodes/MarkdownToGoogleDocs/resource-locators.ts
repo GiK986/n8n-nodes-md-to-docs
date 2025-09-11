@@ -31,7 +31,8 @@ export const resourceLocatorMethods = {
 					method: 'GET' as IHttpRequestMethods,
 					url: 'https://www.googleapis.com/drive/v3/drives',
 					qs: {
-						pageSize: 200,
+						pageSize: 100,
+						useDomainAdminAccess: false, // Include organizational drives
 					},
 				},
 			);
@@ -81,12 +82,8 @@ export const resourceLocatorMethods = {
 		paginationToken?: string,
 	): Promise<INodeListSearchResult> {
 		try {
-			const results: INodeListSearchItems[] = [
-				{
-					name: '/ (Root)',
-					value: 'root',
-				},
-			];
+			const results: INodeListSearchItems[] =[];
+
 
 			// Simple driveId parameter handling
 			let driveId = 'My Drive';
@@ -113,6 +110,7 @@ export const resourceLocatorMethods = {
 				qs.q += ' and sharedWithMe = true';
 			} else if (driveId && driveId !== 'My Drive') {
 				qs.driveId = driveId;
+				qs.corpora = "drive";
 				qs.includeItemsFromAllDrives = true;
 				qs.supportsAllDrives = true;
 			}
@@ -130,6 +128,13 @@ export const resourceLocatorMethods = {
 					qs,
 				},
 			);
+
+			if (driveId === 'My Drive') {
+				results.push({
+					name: '/ (Root)',
+					value: 'root',
+				});
+			}
 
 			if (response?.files && Array.isArray(response.files)) {
 				for (const folder of response.files) {
@@ -193,6 +198,8 @@ export const resourceLocatorMethods = {
 				pageSize: 100,
 				fields: 'files(id,name)',
 				pageToken: paginationToken,
+				includeItemsFromAllDrives: true,
+				supportsAllDrives: true,
 			};
 
 			if (filter) {
@@ -244,6 +251,9 @@ export const resourceLocatorMethods = {
 				fields: 'files(id,name,modifiedTime)',
 				orderBy: 'modifiedTime desc',
 				pageToken: paginationToken,
+				corpora: 'allDrives',
+				supportsAllDrives: true,
+				includeItemsFromAllDrives: true,
 			};
 
 			if (filter) {

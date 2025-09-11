@@ -5,10 +5,6 @@ import type { DocumentCreationResult } from './types';
 import type { GoogleDocsRequest } from './types';
 
 export class GoogleDocsAPI {
-	// Helper function to determine if Shared Drive parameters are needed
-	static needsSharedDriveParams(driveId: string): boolean {
-		return !!(driveId && driveId !== 'My Drive' && driveId !== 'sharedWithMe');
-	}
 	static async createGoogleDocsDocumentWithAPI(
 		executeFunctions: IExecuteFunctions,
 		markdownInput: string,
@@ -28,12 +24,6 @@ export class GoogleDocsAPI {
 
 			if (templateDocumentId) {
 				// Step 1: Copy the template
-				const needsSharedDrive = this.needsSharedDriveParams(driveId);
-				const copyQueryParams: any = {};
-				if (needsSharedDrive) {
-					copyQueryParams.supportsAllDrives = true;
-					copyQueryParams.includeItemsFromAllDrives = true;
-				}
 
 				const copyResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
@@ -42,7 +32,10 @@ export class GoogleDocsAPI {
 						method: 'POST' as IHttpRequestMethods,
 						url: `https://www.googleapis.com/drive/v3/files/${templateDocumentId}/copy`,
 						body: { name: documentTitle, parents: [folderId] },
-						qs: copyQueryParams,
+						qs: {
+							includeItemsFromAllDrives: true,
+							supportsAllDrives: true,
+						},
 					},
 				);
 				documentId = copyResponse.id;
@@ -163,14 +156,6 @@ export class GoogleDocsAPI {
 						...(folderId && folderId !== 'root' ? { parents: [folderId] } : {}),
 					};
 
-					// Add Shared Drive parameters if needed
-					const needsSharedDrive = this.needsSharedDriveParams(driveId);
-					const createQueryParams: any = {};
-					if (needsSharedDrive) {
-						createQueryParams.supportsAllDrives = true;
-						createQueryParams.includeItemsFromAllDrives = true;
-					}
-
 					const documentResponse =
 						await executeFunctions.helpers.httpRequestWithAuthentication.call(
 							executeFunctions,
@@ -179,7 +164,10 @@ export class GoogleDocsAPI {
 								method: 'POST' as IHttpRequestMethods,
 								url: 'https://www.googleapis.com/drive/v3/files',
 								body: createDocumentRequest,
-								qs: createQueryParams,
+								qs: {
+									includeItemsFromAllDrives: true,
+									supportsAllDrives: true,
+								},
 								headers: {
 									'Content-Type': 'application/json',
 								},
@@ -188,7 +176,42 @@ export class GoogleDocsAPI {
 					documentId = documentResponse.id;
 					executeFunctions.logger.info('Document created successfully using Google Drive API');
 				} catch (error) {
-					throw new NodeOperationError(executeFunctions.getNode(), error);
+					// Enhanced error logging for debugging
+					console.log('=== DOCUMENT CREATION ERROR ===');
+					console.log('Error message:', error.message);
+					console.log('HTTP Status:', error.response?.status);
+					console.log('Status Text:', error.response?.statusText);
+					console.log('Error Code:', error.response?.data?.error?.code);
+					console.log('Google API Error:', error.response?.data?.error?.message);
+					console.log('Full error data:', JSON.stringify(error.response?.data, null, 2));
+					console.log('folderId:', folderId);
+					console.log('driveId:', driveId);
+					console.log('===============================');
+
+					executeFunctions.logger.error('Document creation failed:', {
+						error: error.message,
+						status: error.response?.status,
+						statusText: error.response?.statusText,
+						errorCode: error.response?.data?.error?.code,
+						errorMessage: error.response?.data?.error?.message,
+						folderId,
+						driveId,
+					});
+
+					// Provide specific error messages based on the error type
+					if (error.response?.status === 404) {
+						throw new NodeOperationError(
+							executeFunctions.getNode(),
+							`Folder with ID "${folderId}" was not found. Please verify the folder exists and you have access to it. If this is a Shared Drive folder, ensure you have the correct permissions.`,
+						);
+					} else if (error.response?.status === 403) {
+						throw new NodeOperationError(
+							executeFunctions.getNode(),
+							`Permission denied when creating document in folder "${folderId}". Please check your Google Drive permissions for this folder.`,
+						);
+					} else {
+						throw new NodeOperationError(executeFunctions.getNode(), error);
+					}
 				}
 			}
 
@@ -197,21 +220,16 @@ export class GoogleDocsAPI {
 			if (!folderName && folderId !== 'root') {
 				try {
 					// Try to get folder name via API
-					const needsSharedDrive = this.needsSharedDriveParams(driveId);
-					const folderQueryParams: any = {
-						fields: 'name',
-					};
-					if (needsSharedDrive) {
-						folderQueryParams.supportsAllDrives = true;
-					}
-
 					const folderResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
 						'googleDocsOAuth2Api',
 						{
 							method: 'GET' as IHttpRequestMethods,
 							url: `https://www.googleapis.com/drive/v3/files/${folderId}`,
-							qs: folderQueryParams,
+							qs: {
+								includeItemsFromAllDrives: true,
+								supportsAllDrives: true,
+							},
 						},
 					);
 					finalFolderName = folderResponse.name;
@@ -276,10 +294,26 @@ export class GoogleDocsAPI {
 					url: 'https://www.googleapis.com/drive/v3/about',
 					qs: {
 						fields: 'user,storageQuota',
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
 					},
 				},
 			);
-
+			// Test Google Shared Drives access
+			const sharedDrivesResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+				executeFunctions,
+				'googleDocsOAuth2Api',
+				{
+					method: 'GET' as IHttpRequestMethods,
+					url: 'https://www.googleapis.com/drive/v3/drives',
+					qs: {
+						pageSize: 1,
+						fields: 'drives(name,id)',
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
+					},
+				},
+			);
 			// Test Google Docs API access by trying to list recent documents
 			const docsResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 				executeFunctions,
@@ -291,6 +325,8 @@ export class GoogleDocsAPI {
 						q: "mimeType='application/vnd.google-apps.document'",
 						pageSize: 1,
 						fields: 'files(id,name)',
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
 					},
 				},
 			);
@@ -306,6 +342,8 @@ export class GoogleDocsAPI {
 						q: "mimeType='application/vnd.google-apps.folder'",
 						pageSize: 1,
 						fields: 'files(id,name)',
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
 					},
 				},
 			);
@@ -318,13 +356,15 @@ export class GoogleDocsAPI {
 					permissions: {
 						driveAccess: true,
 						docsAccess: true,
-						folderAccess: true,
+						folderAccess: foldersResponse.files?.length ? true : false,
+						sharedDrivesAccess: sharedDrivesResponse.drives?.length ? true : false,
 						documentsFound: docsResponse.files?.length || 0,
 						foldersFound: foldersResponse.files?.length || 0,
+						sharedDrivesFound: sharedDrivesResponse.drives?.length || 0,
 					},
 					scopes: [
 						'https://www.googleapis.com/auth/documents',
-						'https://www.googleapis.com/auth/drive.file',
+						'https://www.googleapis.com/auth/drive',
 					],
 					testTime: new Date().toISOString(),
 				},

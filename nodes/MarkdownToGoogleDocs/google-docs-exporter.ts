@@ -20,6 +20,8 @@ export class GoogleDocsExporter {
 					url: `https://www.googleapis.com/drive/v3/files/${documentId}`,
 					qs: {
 						fields: 'name,size',
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
 					},
 				},
 			);
@@ -35,6 +37,8 @@ export class GoogleDocsExporter {
 					url: `https://www.googleapis.com/drive/v3/files/${documentId}/export`,
 					qs: {
 						mimeType: exportFormat,
+						includeItemsFromAllDrives: true,
+						supportsAllDrives: true,
 					},
 					encoding: exportFormat.includes('text/') ? 'text' : 'arraybuffer',
 					returnFullResponse: true,
@@ -61,7 +65,7 @@ export class GoogleDocsExporter {
 			};
 
 			const fileExtension = fileExtensions[exportFormat] || 'bin';
-			
+
 			// Use document title if no custom filename provided or if it's empty
 			let fileName: string;
 			if (outputFileName && outputFileName.trim()) {
@@ -69,7 +73,7 @@ export class GoogleDocsExporter {
 			} else {
 				fileName = documentTitle.replace(/[^\p{L}\p{N}\s-]/gu, '').trim();
 			}
-			
+
 			const fullFileName = `${fileName}.${fileExtension}`;
 
 			// Get content and size
@@ -94,7 +98,7 @@ export class GoogleDocsExporter {
 			if (saveToGoogleDrive) {
 				// Save to Google Drive using multipart upload
 				const targetFolder = typeof targetFolderId === 'object' ? targetFolderId.value : targetFolderId || 'root';
-				
+
 				// First create the file metadata
 				const metadata = {
 					name: fullFileName,
