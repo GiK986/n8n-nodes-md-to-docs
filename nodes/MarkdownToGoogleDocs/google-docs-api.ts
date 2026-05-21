@@ -17,6 +17,7 @@ export class GoogleDocsAPI {
 		mainContentPlaceholder?: string,
 		pageBreakStrategy?: string,
 		customPageBreakText?: string,
+		parsePlaceholderMarkdown: boolean = false,
 	): Promise<DocumentCreationResult> {
 		try {
 			let documentId: string;
@@ -40,32 +41,125 @@ export class GoogleDocsAPI {
 				);
 				documentId = copyResponse.id;
 
-				// Step 2: Replace simple placeholders in a dedicated batch
+				// Step 2: Replace placeholders.
+				// Phase 2a — plain text swap via replaceAllText. Handles every placeholder when
+				// the markdown toggle is off, and the no-block-markdown subset when it's on.
+				// Phase 2b — for placeholders with block-level markdown values (only when the
+				// toggle is on), walk the doc, collect every occurrence, then issue a single
+				// batchUpdate in reverse-index order so earlier indices stay valid as later
+				// edits land.
 				if (placeholderData && Object.keys(placeholderData).length > 0) {
-					const placeholderRequests: GoogleDocsRequest[] = [];
+					const plainRequests: GoogleDocsRequest[] = [];
+					const markdownKeys: Array<{ token: string; value: string }> = [];
+
 					for (const key in placeholderData) {
-						if (
-							Object.prototype.hasOwnProperty.call(placeholderData, key) &&
-							`{{${key}}}` !== mainContentPlaceholder
-						) {
-							placeholderRequests.push({
+						if (!Object.prototype.hasOwnProperty.call(placeholderData, key)) continue;
+						const token = `{{${key}}}`;
+						if (token === mainContentPlaceholder) continue;
+
+						const rawValue = String(placeholderData[key]);
+						const isMarkdown =
+							parsePlaceholderMarkdown && MarkdownProcessor.hasBlockMarkdown(rawValue);
+
+						if (isMarkdown) {
+							markdownKeys.push({ token, value: rawValue });
+						} else {
+							plainRequests.push({
 								replaceAllText: {
-									containsText: { text: `{{${key}}}`, matchCase: false },
-									replaceText: String(placeholderData[key]),
+									containsText: { text: token, matchCase: false },
+									replaceText: rawValue,
 								},
 							});
 						}
 					}
-					if (placeholderRequests.length > 0) {
+
+					// Phase 2a
+					if (plainRequests.length > 0) {
 						await executeFunctions.helpers.httpRequestWithAuthentication.call(
 							executeFunctions,
 							'googleDocsOAuth2Api',
 							{
 								method: 'POST' as IHttpRequestMethods,
 								url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
-								body: { requests: placeholderRequests },
+								body: { requests: plainRequests },
 							},
 						);
+					}
+
+					// Phase 2b — reverse-order walk for markdown-bound placeholders.
+					if (markdownKeys.length > 0) {
+						const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+							executeFunctions,
+							'googleDocsOAuth2Api',
+							{
+								method: 'GET' as IHttpRequestMethods,
+								url: `https://docs.googleapis.com/v1/documents/${documentId}?fields=body.content`,
+							},
+						);
+
+						type Occurrence = { startIndex: number; length: number; value: string };
+						const occurrences: Occurrence[] = [];
+
+						if (doc.body && doc.body.content) {
+							for (const element of doc.body.content) {
+								if (!element.paragraph) continue;
+								for (const run of element.paragraph.elements) {
+									if (!run.textRun || typeof run.textRun.content !== 'string') continue;
+									const runStart = run.startIndex || 0;
+									const runText: string = run.textRun.content;
+									const runTextLower = runText.toLowerCase();
+
+									for (const { token, value } of markdownKeys) {
+										const tokenLower = token.toLowerCase();
+										let searchFrom = 0;
+										while (true) {
+											const hit = runTextLower.indexOf(tokenLower, searchFrom);
+											if (hit === -1) break;
+											occurrences.push({
+												startIndex: runStart + hit,
+												length: token.length,
+												value,
+											});
+											searchFrom = hit + token.length;
+										}
+									}
+								}
+							}
+						}
+
+						if (occurrences.length > 0) {
+							occurrences.sort((a, b) => b.startIndex - a.startIndex);
+
+							const markdownRequests: GoogleDocsRequest[] = [];
+							for (const occ of occurrences) {
+								markdownRequests.push({
+									deleteContentRange: {
+										range: {
+											startIndex: occ.startIndex,
+											endIndex: occ.startIndex + occ.length,
+										},
+									},
+								});
+
+								const conversion = MarkdownProcessor.convertMarkdownToApiRequests(
+									occ.value,
+									'',
+									'single',
+									occ.startIndex,
+								);
+								markdownRequests.push(...conversion.batchUpdateRequest.requests);
+							}
+
+							await executeFunctions.helpers.httpRequestWithAuthentication.call(
+								executeFunctions,
+								'googleDocsOAuth2Api',
+								{
+									method: 'POST' as IHttpRequestMethods,
+									url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+									body: { requests: markdownRequests },
+								},
+							);
+						}
 					}
 				}
 
@@ -300,20 +394,21 @@ export class GoogleDocsAPI {
 				},
 			);
 			// Test Google Shared Drives access
-			const sharedDrivesResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
-				executeFunctions,
-				'googleDocsOAuth2Api',
-				{
-					method: 'GET' as IHttpRequestMethods,
-					url: 'https://www.googleapis.com/drive/v3/drives',
-					qs: {
-						pageSize: 1,
-						fields: 'drives(name,id)',
-						includeItemsFromAllDrives: true,
-						supportsAllDrives: true,
+			const sharedDrivesResponse =
+				await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: 'https://www.googleapis.com/drive/v3/drives',
+						qs: {
+							pageSize: 1,
+							fields: 'drives(name,id)',
+							includeItemsFromAllDrives: true,
+							supportsAllDrives: true,
+						},
 					},
-				},
-			);
+				);
 			// Test Google Docs API access by trying to list recent documents
 			const docsResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 				executeFunctions,

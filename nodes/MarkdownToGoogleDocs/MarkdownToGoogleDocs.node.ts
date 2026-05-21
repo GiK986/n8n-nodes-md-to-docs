@@ -73,7 +73,8 @@ export class MarkdownToGoogleDocs implements INodeType {
 						const outputFileName = this.getNodeParameter('outputFileName', itemIndex, '') as string;
 						const outputOptions = this.getNodeParameter('outputOptions', itemIndex, {}) as any;
 
-						const documentId = typeof documentIdParam === 'object' ? documentIdParam.value : documentIdParam;
+						const documentId =
+							typeof documentIdParam === 'object' ? documentIdParam.value : documentIdParam;
 
 						if (!documentId) {
 							throw new NodeOperationError(this.getNode(), 'Document ID is required', {
@@ -128,7 +129,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 							itemIndex,
 							{},
 						) as IAdditionalOptions;
-						
+
 						result = MarkdownProcessor.convertMarkdownToApiRequests(
 							markdownInput,
 							documentTitle,
@@ -186,6 +187,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 
 						let placeholderData: string | object | undefined;
 						let mainContentPlaceholder: string | undefined;
+						let parsePlaceholderMarkdown = false;
 
 						if (usePlaceholders) {
 							placeholderData =
@@ -194,6 +196,9 @@ export class MarkdownToGoogleDocs implements INodeType {
 							mainContentPlaceholder =
 								additionalOptions.templateSettings!.values.placeholders!.placeholderSettings!.values
 									.mainContentPlaceholder;
+							parsePlaceholderMarkdown =
+								additionalOptions.templateSettings!.values.placeholders!.placeholderSettings!.values
+									.parsePlaceholderMarkdown === true;
 
 							if (typeof placeholderData === 'string') {
 								try {
@@ -231,6 +236,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 							usePlaceholders && useMarkdownInput ? mainContentPlaceholder : undefined,
 							additionalOptions.pageBreakSettings?.values?.pageBreakStrategy,
 							additionalOptions.pageBreakSettings?.values?.customPageBreakText,
+							parsePlaceholderMarkdown,
 						);
 						break;
 

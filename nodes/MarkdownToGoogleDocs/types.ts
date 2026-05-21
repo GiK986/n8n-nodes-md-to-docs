@@ -163,6 +163,7 @@ export interface IAdditionalOptions {
 				placeholderSettings?: {
 					values: {
 						placeholderData?: string | object;
+						parsePlaceholderMarkdown?: boolean;
 						useMarkdownInput?: boolean;
 						mainContentPlaceholder?: string;
 					};
