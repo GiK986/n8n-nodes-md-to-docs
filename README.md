@@ -170,6 +170,11 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
   - Use text placeholders like `{{key}}` anywhere in your template (headers, footers, body).
   - Provide a JSON object with corresponding key-value pairs (e.g., `{ "key": "Your Value" }`) to replace them dynamically.
   - Supports n8n expressions for generating values on the fly.
+- **Markdown in Placeholder Values**:
+  - Turn on **Parse Placeholder Values As Markdown** to render block-level markdown inside placeholder values: headings, lists, tables, blockquotes, code fences, and multi-paragraph content all become formatted Google Docs content.
+  - The rule is block-only. A placeholder value triggers markdown rendering if it contains a newline, or starts with `#`, `-`, `*`, `>`, `|`, or a code fence. A value like `# Quarterly Report` on its own line becomes a real heading.
+  - Single-line values with only inline markers (`**bold**`, `_italic_`, `[link](url)`) stay as literal text swaps, so a placeholder sitting mid-sentence keeps its surrounding paragraph intact. Put markdown placeholders on their own line in the template.
+  - Default is off — every value is a literal text swap, exactly as before. This toggle only affects the JSON placeholders, not the Main Content Placeholder below.
 - **Smart Markdown Injection**:
   - By default, your Markdown input replaces the entire body of the template.
   - Optionally, specify a "Main Content Placeholder" (e.g., `{{MainContent}}`) in your template body. The node will replace only this specific placeholder with your rendered Markdown.
@@ -324,6 +329,7 @@ The `additionalOptions` parameter provides access to advanced features like temp
   - **`placeholders`** (`collection`): Enables placeholder replacement within the selected template.
     - **`placeholderSettings`** (`fixedCollection`): Contains settings for placeholder data and Markdown injection.
       - **`placeholderData`** (`json`): A JSON object of key-value pairs for placeholders (e.g., `{ "key": "value" }`).
+      - **`parsePlaceholderMarkdown`** (`boolean`): Renders placeholder values that contain block-level markdown as formatted Google Docs content. Block-level means a newline, or a value starting with `#`, `-`, `*`, `>`, `|`, or a code fence. Single-line values without those markers stay as literal text swaps. Defaults to off.
       - **`useMarkdownInput`** (`boolean`): Whether to use the Markdown content. If disabled, the node only replaces placeholders.
       - **`mainContentPlaceholder`** (`string`): The specific placeholder (e.g., `{{MainContent}}`) to be replaced by the Markdown content. If not specified, the entire document body is replaced.
 
@@ -396,6 +402,7 @@ npm link n8n-nodes-md-to-docs
 - [x] **Checkbox Lists**: Native Google Docs checkboxes for `- [x]` and `- [ ]` syntax with proper checked/unchecked states
 - [x] **Image Support**: Convert Markdown images to Google Docs embedded images (URL-based only)
 - [x] **Template and Text Placeholder System**: Create documents from a template, preserving headers/footers and replacing dynamic text `{{placeholders}}`.
+- [x] **Markdown in Placeholder Values**: Opt-in rendering of block-level markdown (headings, lists, tables) inside `{{placeholder}}` values, not just the main content.
 - [x] **Enhanced List Support**: Flawless rendering of multi-line and deeply nested list items with accurate inline formatting.
 - [x] **Google Docs Export**: Export existing Google Docs to Markdown, PDF, or Plain Text with automatic output handling and optional Drive save.
 
