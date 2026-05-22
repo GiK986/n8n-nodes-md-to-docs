@@ -1,4 +1,4 @@
-import {
+import type {
 	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
@@ -26,8 +26,8 @@ export class MarkdownToGoogleDocs implements INodeType {
 		defaults: {
 			name: 'Markdown to Google Docs',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main' as NodeConnectionType],
+		outputs: ['main' as NodeConnectionType],
 		usableAsTool: true,
 		credentials: [
 			{
