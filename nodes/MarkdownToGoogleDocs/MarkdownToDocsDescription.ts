@@ -242,11 +242,33 @@ const additionalOptions: INodeProperties = {
 											displayName: 'Values',
 											values: [
 												{
+													displayName: 'Main Content Placeholder',
+													name: 'mainContentPlaceholder',
+													type: 'string',
+													default: '{{MainContent}}',
+													description:
+														'The exact token in your template (e.g. `{{MainContent}}`) that will be replaced by the parsed Markdown Input. The token must sit on its own line in the template — its containing paragraph is replaced by the rendered markdown blocks.',
+													displayOptions: {
+														show: {
+															useMarkdownInput: [true],
+														},
+													},
+												},
+												{
+													displayName: 'Parse Placeholder Values As Markdown',
+													name: 'parsePlaceholderMarkdown',
+													type: 'boolean',
+													default: false,
+													description:
+														'Whether placeholder values containing block-level markdown should be rendered as formatted Google Docs content. Block-level means a value with a newline, or one that starts with a heading (`#`), list (`-`, `*`, `1.`), blockquote (`>`), table (`|`), or code fence (```` ``` ````). Single-line values without those markers — including ones with only inline markdown like `**bold**` or `[link](URL)` — are still inserted as literal text via a direct text swap, so they stay inside their surrounding paragraph. Off keeps every value as a literal text swap (the original behavior).',
+												},
+												{
 													displayName: 'Placeholder Data (JSON)',
 													name: 'placeholderData',
 													type: 'json',
 													default: '{}',
-													description: 'A JSON object of key-value pairs for placeholders',
+													description:
+														'A JSON object of key-value pairs for placeholders. By default every value is inserted as literal text (e.g. `**Acme**` will show the asterisks). Enable "Parse Placeholder Values As Markdown" below to render block-level markdown (headings, lists, tables, multi-line content) as formatted Google Docs.',
 													hint: `e.g. { "placeholderName": "placeholderValue", "Date": "{{ $now.format('yyyy-MM-dd') }}" }`,
 												},
 												{
@@ -254,19 +276,8 @@ const additionalOptions: INodeProperties = {
 													name: 'useMarkdownInput',
 													type: 'boolean',
 													default: true,
-													description: 'Whether to use the Markdown Input field content',
-												},
-												{
-													displayName: 'Main Content Placeholder',
-													name: 'mainContentPlaceholder',
-													type: 'string',
-													default: '{{MainContent}}',
-													description: 'The placeholder to be replaced by the Markdown content',
-													displayOptions: {
-														show: {
-															useMarkdownInput: [true],
-														},
-													},
+													description:
+														'Whether the Markdown Input field above should be parsed and injected into the template at the Main Content Placeholder position below. This is independent of the per-placeholder markdown setting above — Main Content always uses the full markdown pipeline.',
 												},
 											],
 										},
@@ -404,7 +415,8 @@ const exportGoogleDocOperation: INodeProperties[] = [
 				displayName: 'Link',
 				name: 'url',
 				type: 'string',
-				placeholder: 'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
+				placeholder:
+					'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
 				extractValue: {
 					type: 'regex',
 					regex: /(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/document\/d\/([a-zA-Z0-9-_]+)/,
@@ -478,7 +490,8 @@ const exportGoogleDocOperation: INodeProperties[] = [
 				operation: ['exportGoogleDoc'],
 			},
 		},
-		description: 'Custom filename for the exported file (optional - will use document title if empty)',
+		description:
+			'Custom filename for the exported file (optional - will use document title if empty)',
 	},
 	{
 		displayName: 'Output Options',
@@ -512,7 +525,8 @@ const exportGoogleDocOperation: INodeProperties[] = [
 						displayName: 'Link',
 						name: 'url',
 						type: 'string',
-						placeholder: 'e.g. https://drive.google.com/drive/folders/1Tx9WHbA3wBpPB4C_HcoZDH9WZFWYxAMU',
+						placeholder:
+							'e.g. https://drive.google.com/drive/folders/1Tx9WHbA3wBpPB4C_HcoZDH9WZFWYxAMU',
 						extractValue: {
 							type: 'regex',
 							regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
@@ -676,7 +690,6 @@ const createDocumentOperation: INodeProperties[] = [
 	},
 ];
 
-
 export const markdownToDocsFields: INodeProperties[] = [
 	/* -------------------------------------------------------------------------- */
 	/*                        convertToApiRequests Operation                      */
@@ -702,5 +715,4 @@ export const markdownToDocsFields: INodeProperties[] = [
 	/*                        Additional Options                                  */
 	/* -------------------------------------------------------------------------- */
 	additionalOptions,
-
 ];

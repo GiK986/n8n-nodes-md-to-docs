@@ -16,6 +16,18 @@ import type {
 
 export class MarkdownProcessor {
 	/**
+	 * Returns true when the value contains block-level markdown that should be parsed
+	 * (multi-line content, or a line that starts with a heading/list/blockquote/table/fence marker).
+	 * Inline-only markers like **bold**, _italic_, `code`, and [link](url) intentionally do NOT
+	 * trigger this — those values stay as literal text swaps to preserve their surrounding paragraph.
+	 */
+	static hasBlockMarkdown(value: string): boolean {
+		if (!value) return false;
+		if (/\n/.test(value)) return true;
+		return /^\s*(#{1,6}\s|[-+*]\s|\d+\.\s|>\s|\||```|~~~)/.test(value);
+	}
+
+	/**
 	 * Convert markdown to Google Docs API requests using HTML parsing approach
 	 * This method first converts markdown to HTML, then parses HTML elements
 	 * to generate appropriate Google Docs API requests for each element.
@@ -58,7 +70,7 @@ export class MarkdownProcessor {
 					insertIndex,
 					$,
 					pageBreakStrategy,
-					{ firstH1Found }
+					{ firstH1Found },
 				);
 				if (elementRequests && elementRequests.length > 0) {
 					requests.push(...elementRequests);
@@ -201,7 +213,7 @@ export class MarkdownProcessor {
 		const shouldAddPageBreak = this.shouldAddPageBreakBeforeHeading(
 			element.tagName!.toUpperCase(),
 			pageBreakStrategy,
-			headingTracker
+			headingTracker,
 		);
 
 		let headingInsertIndex = insertIndex;
@@ -672,8 +684,7 @@ export class MarkdownProcessor {
 				updateParagraphStyle: {
 					range: {
 						startIndex: firstItemMeta.startIndex,
-						endIndex:
-							firstItemMeta.startIndex + firstItemMeta.textToInsert.length,
+						endIndex: firstItemMeta.startIndex + firstItemMeta.textToInsert.length,
 					},
 					paragraphStyle: {
 						spaceAbove: { magnitude: 12, unit: 'PT' },
