@@ -68,13 +68,12 @@ export class MarkdownToGoogleDocs implements INodeType {
 
 				switch (operation) {
 					case 'exportGoogleDoc':
-						const documentIdParam = this.getNodeParameter('documentId', itemIndex) as any;
+						const documentId = this.getNodeParameter('documentId', itemIndex, undefined, {
+							extractValue: true,
+						}) as string;
 						const exportFormat = this.getNodeParameter('exportFormat', itemIndex) as string;
 						const outputFileName = this.getNodeParameter('outputFileName', itemIndex, '') as string;
 						const outputOptions = this.getNodeParameter('outputOptions', itemIndex, {}) as any;
-
-						const documentId =
-							typeof documentIdParam === 'object' ? documentIdParam.value : documentIdParam;
 
 						if (!documentId) {
 							throw new NodeOperationError(this.getNode(), 'Document ID is required', {
@@ -141,8 +140,19 @@ export class MarkdownToGoogleDocs implements INodeType {
 						break;
 
 					case 'createDocument':
-						const driveParam = this.getNodeParameter('driveId', itemIndex) as any;
-						const folderParam = this.getNodeParameter('folderId', itemIndex) as any;
+						const driveId = (this.getNodeParameter('driveId', itemIndex, undefined, {
+							extractValue: true,
+						}) as string) || 'My Drive';
+						const folderId = (this.getNodeParameter('folderId', itemIndex, undefined, {
+							extractValue: true,
+						}) as string) || 'root';
+						const folderRaw = this.getNodeParameter('folderId', itemIndex) as any;
+						const folderName: string | undefined =
+							typeof folderRaw === 'object'
+								? (folderRaw?.cachedResultName as string | undefined)
+								: folderRaw === 'root'
+									? 'My Drive'
+									: (folderRaw as string | undefined);
 
 						const additionalOptions = this.getNodeParameter(
 							'additionalOptions',
@@ -179,10 +189,18 @@ export class MarkdownToGoogleDocs implements INodeType {
 						if (useTemplate) {
 							const templateDocumentParam = additionalOptions.templateSettings!.values
 								.templateDocumentId as any;
-							templateDocumentId =
-								typeof templateDocumentParam === 'object' && templateDocumentParam.value
-									? templateDocumentParam.value
-									: templateDocumentParam;
+							if (templateDocumentParam && typeof templateDocumentParam === 'object') {
+								if (templateDocumentParam.mode === 'url' && templateDocumentParam.value) {
+									const match = /\/document\/d\/([a-zA-Z0-9_-]+)/.exec(
+										templateDocumentParam.value as string,
+									);
+									templateDocumentId = match ? match[1] : templateDocumentParam.value;
+								} else {
+									templateDocumentId = templateDocumentParam.value || undefined;
+								}
+							} else {
+								templateDocumentId = templateDocumentParam || undefined;
+							}
 						}
 
 						let placeholderData: string | object | undefined;
@@ -212,17 +230,6 @@ export class MarkdownToGoogleDocs implements INodeType {
 								}
 							}
 						}
-
-						const driveId =
-							typeof driveParam === 'object' ? driveParam.value : driveParam || 'My Drive';
-						const folderId =
-							typeof folderParam === 'object' ? folderParam.value : folderParam || 'root';
-						const folderName =
-							typeof folderParam === 'object'
-								? folderParam.name
-								: folderParam === 'root'
-									? 'My Drive'
-									: folderParam;
 
 						result = await GoogleDocsAPI.createGoogleDocsDocumentWithAPI(
 							this,
