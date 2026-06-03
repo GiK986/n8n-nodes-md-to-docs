@@ -360,11 +360,7 @@ const additionalOptions: INodeProperties = {
 };
 
 // Common properties for createDocument and convertToApiRequests operations
-const commonProperties: INodeProperties[] = [
-	documentTitleProperty,
-	markdownInputProperty,
-	markdownInputNotice,
-];
+const commonProperties: INodeProperties[] = [documentTitleProperty];
 
 // Properties for convertToApiRequests operation
 const convertToApiRequestsOperation: INodeProperties[] = [
@@ -840,15 +836,6 @@ const updateDocumentOperation: INodeProperties[] = [
 		},
 		options: [
 			{
-				displayName: 'New Tab Title',
-				name: 'newTabTitle',
-				type: 'string',
-				default: '',
-				placeholder: 'e.g. Meeting Notes',
-				description:
-					'Title for the new tab when "+ Create New Tab" is selected. If empty, a unique name is auto-generated (e.g. "New Tab 2").',
-			},
-			{
 				displayName: 'Tab',
 				name: 'updateTabId',
 				type: 'resourceLocator',
@@ -883,6 +870,15 @@ const updateDocumentOperation: INodeProperties[] = [
 					},
 				],
 			},
+			{
+				displayName: 'New Tab Title',
+				name: 'newTabTitle',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. Meeting Notes',
+				description:
+					'Title for the new tab when "+ Create New Tab" is selected. If empty, a unique name is auto-generated (e.g. "New Tab 2").',
+			},
 		],
 	},
 ];
@@ -902,6 +898,8 @@ export const markdownToDocsFields: INodeProperties[] = [
 	/*                         updateDocument Operation                           */
 	/* -------------------------------------------------------------------------- */
 	...updateDocumentOperation,
+	markdownInputProperty,
+	markdownInputNotice,
 
 	/* -------------------------------------------------------------------------- */
 	/*                         exportGoogleDoc Operation                          */
