@@ -36,14 +36,16 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ### Version Compatibility
 
-- **Latest (0.3.5+)**: Full compatibility with self-hosted n8n installations
-- **0.3.1-0.3.4**: Deprecated due to class loading issues - use 0.3.5+
+- **Latest (0.7.0+)**: Full compatibility with self-hosted n8n installations, includes Update Existing Document with tab management
+- **0.6.x**: Stable release with Export Google Doc support
+- **0.3.1-0.3.4**: Deprecated due to class loading issues - use 0.7.0+
 
 ---
 
 ## Operations
 
 - **Create Document**: Instantly create a Google Docs document from Markdown content.
+- **Update Existing Document**: Append, overwrite, or insert Markdown content into an existing Google Doc with full tab support.
 - **Export Google Doc**: Export existing Google Docs to Markdown, PDF, or Plain Text formats.
 - **Convert to API Requests**: Transform Markdown into Google Docs API request JSON (for advanced HTTP Request node usage).
 - **Test Credentials**: Verify your Google API credentials and permissions.
@@ -152,6 +154,7 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 - Headers, bold/italic, links, lists, code blocks
 - Multiple output formats (single/multiple requests)
 - AI Agent Tool compatibility (`usableAsTool: true`)
+- Update existing documents with four flexible modes
 
 **🚀 Advanced Features**:
 
@@ -162,6 +165,14 @@ This node provides powerful Markdown to Google Docs conversion with advanced for
 - **Image Embedding**: Direct URL-based image insertion with optional sizing
 - **Checkbox Lists**: Native Google Docs checkboxes for task lists
 - **Precise Positioning**: Accurate text range calculations for Google Docs API
+
+**📝 Update Existing Document**:
+
+- **Append to End** – adds content after the last character of the document
+- **Overwrite Entire Document** – clears all content and formatting, then writes fresh
+- **Insert After Section Heading** – inserts content at the end of a named section, before the next heading of the same or higher level (case-insensitive heading search)
+- **Insert at Index** – inserts at a specific character position (advanced use)
+- **Tab support** – pick any existing tab from the document, create a new tab (with auto-generated unique title), or enter a tab ID directly
 
 **✨ Template and Text Placeholder System**:
 
@@ -310,16 +321,27 @@ console.log(greeting);
 
 | Parameter | Type | Description |
 |---|---|---|
-| `operation` | options | "createDocument", "exportGoogleDoc", "convertToApiRequests", or "testCredentials" |
+| `operation` | options | "createDocument", "updateDocument", "exportGoogleDoc", "convertToApiRequests", or "testCredentials" |
 | `driveId` | resourceLocator | The Google Drive to create the document in (create operation) |
 | `folderId` | resourceLocator | The folder within the selected drive (create operation) |
+| `documentTitle` | string | Title for the Google Docs document (create operation) |
+| `markdownInput` | string | The Markdown content to convert or inject |
+| `outputFormat` | options | "single" or "multiple" request format (convert operation) |
+| `updateDocumentId` | resourceLocator | The Google Docs document to update (update operation) |
+| `updateMode` | options | "append", "overwrite", "insertAfterHeading", or "insertAt" (update operation) |
+| `sectionHeading` | string | Heading text to search for when using insertAfterHeading mode |
+| `insertIndex` | number | 1-based character position for insertAt mode |
 | `documentId` | resourceLocator | The Google Docs document to export (export operation) |
 | `exportFormat` | options | Export format: "text/markdown", "application/pdf", or "text/plain" (export operation) |
-| `documentTitle` | string | Title for the Google Docs document (create operation) |
-| `markdownInput` | string | The Markdown content to convert (create operation) |
-| `outputFormat`  | options | "single" or "multiple" request format (convert operation) |
 
-### Advanced Options (`additionalOptions`)
+### Update Options (`updateOptions`)
+
+Available when using the **Update Existing Document** operation:
+
+- **`updateTabId`** (`resourceLocator`): The tab to write content to. Choose from a list of existing tabs, select "+ Create New Tab" to create one automatically, or enter a tab ID directly. Leave empty to use the default (first) tab.
+- **`newTabTitle`** (`string`): Custom title for the new tab when "+ Create New Tab" is selected. If left empty, a unique name is auto-generated (e.g. "New Tab 2").
+
+### Additional Options (`additionalOptions`)
 
 The `additionalOptions` parameter provides access to advanced features like templates and placeholders. When you add options, you can configure the following nested structure:
 
@@ -405,6 +427,8 @@ npm link n8n-nodes-md-to-docs
 - [x] **Markdown in Placeholder Values**: Opt-in rendering of block-level markdown (headings, lists, tables) inside `{{placeholder}}` values, not just the main content.
 - [x] **Enhanced List Support**: Flawless rendering of multi-line and deeply nested list items with accurate inline formatting.
 - [x] **Google Docs Export**: Export existing Google Docs to Markdown, PDF, or Plain Text with automatic output handling and optional Drive save.
+- [x] **Update Existing Document**: Append, overwrite, insert after a section heading, or insert at a specific index — without creating a new file.
+- [x] **Tab Management**: Pick from existing document tabs, create new tabs with unique auto-generated titles, or enter a tab ID directly.
 
 🚀 **Future Enhancements**
 
