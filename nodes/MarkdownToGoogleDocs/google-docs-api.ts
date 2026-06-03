@@ -437,6 +437,13 @@ export class GoogleDocsAPI {
 		tabId?: string,
 	): Promise<DocumentUpdateResult> {
 		try {
+			if (!markdownInput.trim()) {
+				throw new NodeOperationError(
+					executeFunctions.getNode(),
+					'Markdown input is required for the Update Existing Document operation.',
+				);
+			}
+
 			const baseHeaders: Record<string, string> = {};
 			if (tabId) {
 				baseHeaders['X-Goog-Docs-Features'] = 'tab';
@@ -506,13 +513,6 @@ export class GoogleDocsAPI {
 				}
 			} else {
 				insertAt = insertIndex ?? 1;
-			}
-
-			if (!markdownInput.trim()) {
-				throw new NodeOperationError(
-					executeFunctions.getNode(),
-					'Markdown input is required for the Update Existing Document operation.',
-				);
 			}
 
 			const apiRequests = MarkdownProcessor.convertMarkdownToApiRequests(
