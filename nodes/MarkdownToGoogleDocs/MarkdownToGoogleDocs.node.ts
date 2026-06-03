@@ -12,7 +12,7 @@ import { resourceLocatorMethods } from './resource-locators';
 import { MarkdownProcessor } from './markdown-processor';
 import { GoogleDocsAPI } from './google-docs-api';
 import { GoogleDocsExporter } from './google-docs-exporter';
-import { IAdditionalOptions } from './types';
+import { IAdditionalOptions, DocumentUpdateResult } from './types';
 
 export class MarkdownToGoogleDocs implements INodeType {
 	description: INodeTypeDescription = {
@@ -61,6 +61,12 @@ export class MarkdownToGoogleDocs implements INodeType {
 
 				if (operation !== 'testCredentials' && operation !== 'exportGoogleDoc') {
 					markdownInput = this.getNodeParameter('markdownInput', itemIndex, '') as string;
+				}
+				if (
+					operation !== 'testCredentials' &&
+					operation !== 'exportGoogleDoc' &&
+					operation !== 'updateDocument'
+				) {
 					documentTitle = this.getNodeParameter('documentTitle', itemIndex) as string;
 				}
 
@@ -250,6 +256,44 @@ export class MarkdownToGoogleDocs implements INodeType {
 					case 'testCredentials':
 						result = await GoogleDocsAPI.testCredentials(this);
 						break;
+
+					case 'updateDocument': {
+						const updateDocumentId = this.getNodeParameter(
+							'updateDocumentId',
+							itemIndex,
+							undefined,
+							{ extractValue: true },
+						) as string;
+
+						if (!updateDocumentId) {
+							throw new NodeOperationError(this.getNode(), 'Document is required', { itemIndex });
+						}
+
+						const updateMode = this.getNodeParameter('updateMode', itemIndex) as
+							| 'append'
+							| 'overwrite'
+							| 'insertAt';
+
+						const insertIndex =
+							updateMode === 'insertAt'
+								? (this.getNodeParameter('insertIndex', itemIndex, 1) as number)
+								: undefined;
+
+						const updateOptions = this.getNodeParameter('updateOptions', itemIndex, {}) as {
+							tabId?: string;
+						};
+						const tabId = updateOptions.tabId?.trim() || undefined;
+
+						result = await GoogleDocsAPI.updateGoogleDocsDocument(
+							this,
+							updateDocumentId,
+							markdownInput,
+							updateMode,
+							insertIndex,
+							tabId,
+						) as DocumentUpdateResult;
+						break;
+					}
 
 					default:
 						throw new NodeOperationError(this.getNode(), `Unknown operation: ${operation}`, {
