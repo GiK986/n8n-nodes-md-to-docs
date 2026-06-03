@@ -475,7 +475,13 @@ export class GoogleDocsAPI {
 				}
 
 				const lastElement = content[content.length - 1];
-				const endIndex = lastElement.endIndex as number;
+				const endIndex = lastElement.endIndex as number | undefined;
+				if (typeof endIndex !== 'number' || !Number.isFinite(endIndex)) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						'Could not determine document end index. The document structure may be unexpected.',
+					);
+				}
 
 				if (updateMode === 'overwrite') {
 					const clearRequests: GoogleDocsRequest[] = [];
@@ -486,15 +492,14 @@ export class GoogleDocsAPI {
 								range: { startIndex: 1, endIndex: endIndex - 1, ...(tabId ? { tabId } : {}) },
 							},
 						});
+						clearRequests.push({
+							updateParagraphStyle: {
+								range: { startIndex: 1, endIndex: 2, ...(tabId ? { tabId } : {}) },
+								paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
+								fields: 'namedStyleType',
+							},
+						});
 					}
-
-					clearRequests.push({
-						updateParagraphStyle: {
-							range: { startIndex: 1, endIndex: 2, ...(tabId ? { tabId } : {}) },
-							paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
-							fields: 'namedStyleType',
-						},
-					});
 
 					await executeFunctions.helpers.httpRequestWithAuthentication.call(
 						executeFunctions,
