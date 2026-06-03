@@ -49,6 +49,30 @@ export class GoogleDocsAPI {
 						tabId,
 					};
 			}
+			if (r.insertInlineImage) {
+				r.insertInlineImage = { ...r.insertInlineImage };
+				if (r.insertInlineImage.location)
+					r.insertInlineImage.location = { ...r.insertInlineImage.location, tabId };
+				if (r.insertInlineImage.endOfSegmentLocation)
+					r.insertInlineImage.endOfSegmentLocation = {
+						...r.insertInlineImage.endOfSegmentLocation,
+						tabId,
+					};
+			}
+			if (r.updateTableCellStyle)
+				r.updateTableCellStyle = {
+					...r.updateTableCellStyle,
+					tableRange: {
+						...r.updateTableCellStyle.tableRange,
+						tableCellLocation: {
+							...r.updateTableCellStyle.tableRange.tableCellLocation,
+							tableStartLocation: {
+								...r.updateTableCellStyle.tableRange.tableCellLocation.tableStartLocation,
+								tabId,
+							},
+						},
+					},
+				};
 			if (r.insertPageBreak)
 				r.insertPageBreak = {
 					...r.insertPageBreak,
