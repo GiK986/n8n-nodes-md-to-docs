@@ -52,7 +52,7 @@ const documentTitleProperty: INodeProperties = {
 	description: 'Title for the Google Docs document',
 	displayOptions: {
 		hide: {
-			operation: ['testCredentials', 'exportGoogleDoc'],
+			operation: ['testCredentials', 'exportGoogleDoc', 'updateDocument'],
 		},
 	},
 };
