@@ -459,6 +459,7 @@ export class GoogleDocsAPI {
 		updateMode: 'append' | 'overwrite' | 'insertAt',
 		insertIndex?: number,
 		tabId?: string,
+		newTabTitle?: string,
 	): Promise<DocumentUpdateResult> {
 		try {
 			if (!markdownInput.trim()) {
@@ -471,6 +472,30 @@ export class GoogleDocsAPI {
 			let resolvedTabId = tabId;
 
 			if (tabId === '__new_tab__') {
+				const tabsResp = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}`,
+						qs: { fields: 'tabs.tabProperties' },
+						headers: { 'X-Goog-Docs-Features': 'tab' },
+					},
+				);
+
+				const existingTitles = new Set<string>();
+				if (tabsResp?.tabs && Array.isArray(tabsResp.tabs)) {
+					for (const tab of tabsResp.tabs) {
+						if (tab.tabProperties?.title) existingTitles.add(tab.tabProperties.title as string);
+					}
+				}
+
+				let candidate = newTabTitle || `New Tab ${existingTitles.size + 1}`;
+				let suffix = 2;
+				while (existingTitles.has(candidate)) {
+					candidate = `${newTabTitle || 'New Tab'} ${suffix++}`;
+				}
+
 				const createTabResp = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
 					'googleDocsOAuth2Api',
@@ -478,7 +503,7 @@ export class GoogleDocsAPI {
 						method: 'POST' as IHttpRequestMethods,
 						url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
 						body: {
-							requests: [{ addDocumentTab: { tabProperties: { title: 'New Tab' } } }],
+							requests: [{ addDocumentTab: { tabProperties: { title: candidate } } }],
 						},
 						headers: { 'X-Goog-Docs-Features': 'tab' },
 					},
@@ -571,7 +596,7 @@ export class GoogleDocsAPI {
 
 					insertAt = 1;
 				} else {
-					insertAt = endIndex - 1;
+					insertAt = Math.max(1, endIndex - 1);
 				}
 			} else {
 				insertAt = insertIndex ?? 1;

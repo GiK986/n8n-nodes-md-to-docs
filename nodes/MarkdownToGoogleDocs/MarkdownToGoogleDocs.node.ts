@@ -279,10 +279,13 @@ export class MarkdownToGoogleDocs implements INodeType {
 								? (this.getNodeParameter('insertIndex', itemIndex, 1) as number)
 								: undefined;
 
-						const tabIdRaw = this.getNodeParameter('updateTabId', itemIndex, '', {
-							extractValue: true,
-						}) as string;
-						const tabId = tabIdRaw.trim() || undefined;
+						const updateOptions = this.getNodeParameter('updateOptions', itemIndex, {}) as {
+							updateTabId?: { mode?: string; value?: string };
+							newTabTitle?: string;
+						};
+						const tabIdRlc = updateOptions.updateTabId;
+						const tabId = (tabIdRlc?.value || '').trim() || undefined;
+						const newTabTitle = (updateOptions.newTabTitle || '').trim();
 
 						result = await GoogleDocsAPI.updateGoogleDocsDocument(
 							this,
@@ -291,6 +294,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 							updateMode,
 							insertIndex,
 							tabId,
+							newTabTitle,
 						) as DocumentUpdateResult;
 						break;
 					}

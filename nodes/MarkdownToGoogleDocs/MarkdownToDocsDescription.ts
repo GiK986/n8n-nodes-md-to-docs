@@ -807,41 +807,58 @@ const updateDocumentOperation: INodeProperties[] = [
 		hint: 'Use the Google Docs API or Convert to API Requests operation to find the correct index.',
 	},
 	{
-		displayName: 'Tab',
-		name: 'updateTabId',
-		type: 'resourceLocator',
-		default: { mode: 'list', value: '' },
-		required: false,
+		displayName: 'Update Options',
+		name: 'updateOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
 		displayOptions: {
 			show: {
 				operation: ['updateDocument'],
 			},
 		},
-		description:
-			'The tab to write content to. Select an existing tab or choose "+ Create New Tab" to create a fresh tab. Leave empty to use the default (first) tab.',
-		modes: [
+		options: [
 			{
-				displayName: 'From List',
-				name: 'list',
-				type: 'list',
-				placeholder: 'Select a tab or create a new one...',
-				typeOptions: {
-					searchListMethod: 'getDocumentTabs',
-					searchable: true,
-				},
+				displayName: 'New Tab Title',
+				name: 'newTabTitle',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. Meeting Notes',
+				description:
+					'Title for the new tab when "+ Create New Tab" is selected. If empty, a unique name is auto-generated (e.g. "New Tab 2").',
 			},
 			{
-				displayName: 'By ID',
-				name: 'id',
-				type: 'string',
-				placeholder: 'e.g. t.0',
-				validation: [
+				displayName: 'Tab',
+				name: 'updateTabId',
+				type: 'resourceLocator',
+				default: { mode: 'list', value: '' },
+				description:
+					'The tab to write content to. Choose "+ Create New Tab", select an existing tab, or enter a tab ID. Leave empty to use the default (first) tab.',
+				modes: [
 					{
-						type: 'regex',
-						properties: {
-							regex: '.+',
-							errorMessage: 'Tab ID cannot be empty when using ID mode',
+						displayName: 'From List',
+						name: 'list',
+						type: 'list',
+						placeholder: 'Select a tab or create a new one...',
+						typeOptions: {
+							searchListMethod: 'getDocumentTabs',
+							searchable: true,
 						},
+					},
+					{
+						displayName: 'By ID',
+						name: 'id',
+						type: 'string',
+						placeholder: 'e.g. t.0',
+						validation: [
+							{
+								type: 'regex',
+								properties: {
+									regex: '.+',
+									errorMessage: 'Tab ID cannot be empty when using ID mode',
+								},
+							},
+						],
 					},
 				],
 			},
