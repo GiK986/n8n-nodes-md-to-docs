@@ -718,9 +718,45 @@ export class GoogleDocsAPI {
 			);
 
 			if (apiRequests.batchUpdateRequest.requests.length > 0) {
+				const rawRequests = apiRequests.batchUpdateRequest.requests;
+
+				// For insertAfterHeading, the insertion point is the startIndex of a heading,
+				// so new paragraphs inherit that heading's style. Fix: split requests into
+				// inserting (insertText/Table/Image/PageBreak) and styling, then inject a
+				// blanket NORMAL_TEXT reset between them so markdown styles override cleanly.
+				let orderedRequests: GoogleDocsRequest[];
+				if (updateMode === 'insertAfterHeading') {
+					const isInsert = (r: GoogleDocsRequest) =>
+						!!(r.insertText || r.insertTable || r.insertInlineImage || r.insertPageBreak);
+					const insertReqs = rawRequests.filter(isInsert);
+					const styleReqs = rawRequests.filter((r) => !isInsert(r));
+
+					const insertedEnd = insertReqs
+						.filter((r) => r.insertText?.location?.index !== undefined)
+						.reduce((max, r) => {
+							const end = r.insertText!.location!.index + r.insertText!.text.length;
+							return Math.max(max, end);
+						}, insertAt);
+
+					if (insertedEnd > insertAt) {
+						const normalReset: GoogleDocsRequest = {
+							updateParagraphStyle: {
+								range: { startIndex: insertAt, endIndex: insertedEnd },
+								paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
+								fields: 'namedStyleType',
+							},
+						};
+						orderedRequests = [...insertReqs, normalReset, ...styleReqs];
+					} else {
+						orderedRequests = rawRequests;
+					}
+				} else {
+					orderedRequests = rawRequests;
+				}
+
 				const requests = resolvedTabId
-					? GoogleDocsAPI.addTabIdToRequests(apiRequests.batchUpdateRequest.requests, resolvedTabId)
-					: apiRequests.batchUpdateRequest.requests;
+					? GoogleDocsAPI.addTabIdToRequests(orderedRequests, resolvedTabId)
+					: orderedRequests;
 
 				await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
