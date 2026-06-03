@@ -781,12 +781,33 @@ const updateDocumentOperation: INodeProperties[] = [
 				description: 'Clear all existing content and formatting, then write fresh',
 			},
 			{
+				name: 'Insert After Section Heading',
+				value: 'insertAfterHeading',
+				description: 'Insert content at the end of a named section, before the next heading',
+			},
+			{
 				name: 'Insert at Index',
 				value: 'insertAt',
-				description: 'Insert content at a specific character position',
+				description: 'Insert content at a specific character position (advanced)',
 			},
 		],
 		description: 'How to write the Markdown content into the existing document',
+	},
+	{
+		displayName: 'Section Heading',
+		name: 'sectionHeading',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+				updateMode: ['insertAfterHeading'],
+			},
+		},
+		description:
+			'The text of the heading to search for (case-insensitive). Content is inserted at the end of that section — after the last paragraph before the next heading of the same or higher level.',
+		placeholder: 'e.g. Meeting Notes',
 	},
 	{
 		displayName: 'Start Index',

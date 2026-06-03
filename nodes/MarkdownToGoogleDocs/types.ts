@@ -217,7 +217,7 @@ export interface DocumentUpdateResult {
 	success: boolean;
 	documentId: string;
 	documentUrl: string;
-	updateMode: 'append' | 'overwrite' | 'insertAt';
+	updateMode: 'append' | 'overwrite' | 'insertAt' | 'insertAfterHeading';
 	insertAt?: number;
 	tabId?: string;
 	message: string;

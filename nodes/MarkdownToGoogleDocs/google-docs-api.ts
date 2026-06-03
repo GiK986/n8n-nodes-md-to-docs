@@ -452,14 +452,62 @@ export class GoogleDocsAPI {
 		}
 	}
 
+	private static extractParagraphText(paragraph: any): string {
+		return (paragraph.elements as any[])
+			.map((e: any) => e.textRun?.content || '')
+			.join('')
+			.replace(/\n$/, '')
+			.trim();
+	}
+
+	private static headingLevel(namedStyleType: string): number {
+		const m = /HEADING_(\d)/.exec(namedStyleType || '');
+		return m ? parseInt(m[1], 10) : 0;
+	}
+
+	private static findSectionInsertIndex(content: any[], sectionHeading: string): number {
+		let targetIdx = -1;
+		let targetLevel = 0;
+
+		for (let i = 0; i < content.length; i++) {
+			const el = content[i];
+			if (!el.paragraph) continue;
+			const text = GoogleDocsAPI.extractParagraphText(el.paragraph);
+			if (text.toLowerCase() === sectionHeading.toLowerCase()) {
+				targetIdx = i;
+				targetLevel = GoogleDocsAPI.headingLevel(
+					el.paragraph.paragraphStyle?.namedStyleType || '',
+				);
+				break;
+			}
+		}
+
+		if (targetIdx === -1) return -1;
+
+		for (let i = targetIdx + 1; i < content.length; i++) {
+			const el = content[i];
+			if (!el.paragraph) continue;
+			const level = GoogleDocsAPI.headingLevel(
+				el.paragraph.paragraphStyle?.namedStyleType || '',
+			);
+			if (level > 0 && (targetLevel === 0 || level <= targetLevel)) {
+				return el.startIndex as number;
+			}
+		}
+
+		const lastEl = content[content.length - 1];
+		return Math.max(1, (lastEl.endIndex as number) - 1);
+	}
+
 	static async updateGoogleDocsDocument(
 		executeFunctions: IExecuteFunctions,
 		documentId: string,
 		markdownInput: string,
-		updateMode: 'append' | 'overwrite' | 'insertAt',
+		updateMode: 'append' | 'overwrite' | 'insertAt' | 'insertAfterHeading',
 		insertIndex?: number,
 		tabId?: string,
 		newTabTitle?: string,
+		sectionHeading?: string,
 	): Promise<DocumentUpdateResult> {
 		try {
 			if (!markdownInput.trim()) {
@@ -607,6 +655,57 @@ export class GoogleDocsAPI {
 				} else {
 					insertAt = Math.max(1, endIndex - 1);
 				}
+			} else if (updateMode === 'insertAfterHeading') {
+				if (!sectionHeading) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						'Section Heading is required for "Insert After Section Heading" mode.',
+					);
+				}
+
+				const getQs: Record<string, string | boolean> = resolvedTabId
+					? {
+							fields: 'tabs.tabProperties,tabs.documentTab.body.content',
+							includeTabsContent: true,
+						}
+					: { fields: 'body.content' };
+
+				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}`,
+						qs: getQs,
+						headers: baseHeaders,
+					},
+				);
+
+				let content;
+				if (resolvedTabId) {
+					const targetTab = (doc.tabs as any[])?.find(
+						(t: any) => t.tabProperties?.tabId === resolvedTabId,
+					);
+					content = targetTab?.documentTab?.body?.content;
+				} else {
+					content = doc.body?.content;
+				}
+
+				if (!content || content.length === 0) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						'Could not read document content. Verify the document exists and you have edit access.',
+					);
+				}
+
+				const found = GoogleDocsAPI.findSectionInsertIndex(content, sectionHeading);
+				if (found === -1) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						`Section heading "${sectionHeading}" was not found in the document.`,
+					);
+				}
+				insertAt = found;
 			} else {
 				insertAt = insertIndex ?? 1;
 			}

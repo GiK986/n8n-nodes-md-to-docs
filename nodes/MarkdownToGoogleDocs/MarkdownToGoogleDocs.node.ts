@@ -272,11 +272,17 @@ export class MarkdownToGoogleDocs implements INodeType {
 						const updateMode = this.getNodeParameter('updateMode', itemIndex) as
 							| 'append'
 							| 'overwrite'
-							| 'insertAt';
+							| 'insertAt'
+							| 'insertAfterHeading';
 
 						const insertIndex =
 							updateMode === 'insertAt'
 								? (this.getNodeParameter('insertIndex', itemIndex, 1) as number)
+								: undefined;
+
+						const sectionHeading =
+							updateMode === 'insertAfterHeading'
+								? (this.getNodeParameter('sectionHeading', itemIndex, '') as string).trim()
 								: undefined;
 
 						const updateOptions = this.getNodeParameter('updateOptions', itemIndex, {}) as {
@@ -295,6 +301,7 @@ export class MarkdownToGoogleDocs implements INodeType {
 							insertIndex,
 							tabId,
 							newTabTitle,
+							sectionHeading,
 						) as DocumentUpdateResult;
 						break;
 					}
