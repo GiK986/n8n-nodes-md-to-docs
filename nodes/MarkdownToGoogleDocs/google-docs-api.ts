@@ -1,10 +1,63 @@
 import type { IExecuteFunctions, IHttpRequestMethods } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import { MarkdownProcessor } from './markdown-processor';
-import type { DocumentCreationResult } from './types';
-import type { GoogleDocsRequest } from './types';
+import type { DocumentCreationResult, DocumentUpdateResult, GoogleDocsRequest } from './types';
 
 export class GoogleDocsAPI {
+	private static addTabIdToRequests(
+		requests: GoogleDocsRequest[],
+		tabId: string,
+	): GoogleDocsRequest[] {
+		return requests.map((req) => {
+			const r = { ...req };
+			if (r.insertText) {
+				r.insertText = { ...r.insertText };
+				if (r.insertText.location)
+					r.insertText.location = { ...r.insertText.location, tabId };
+				if (r.insertText.endOfSegmentLocation)
+					r.insertText.endOfSegmentLocation = { ...r.insertText.endOfSegmentLocation, tabId };
+			}
+			if (r.updateTextStyle)
+				r.updateTextStyle = { ...r.updateTextStyle, range: { ...r.updateTextStyle.range, tabId } };
+			if (r.updateParagraphStyle)
+				r.updateParagraphStyle = {
+					...r.updateParagraphStyle,
+					range: { ...r.updateParagraphStyle.range, tabId },
+				};
+			if (r.deleteContentRange)
+				r.deleteContentRange = {
+					...r.deleteContentRange,
+					range: { ...r.deleteContentRange.range, tabId },
+				};
+			if (r.createParagraphBullets)
+				r.createParagraphBullets = {
+					...r.createParagraphBullets,
+					range: { ...r.createParagraphBullets.range, tabId },
+				};
+			if (r.deleteParagraphBullets)
+				r.deleteParagraphBullets = {
+					...r.deleteParagraphBullets,
+					range: { ...r.deleteParagraphBullets.range, tabId },
+				};
+			if (r.insertTable) {
+				r.insertTable = { ...r.insertTable };
+				if (r.insertTable.location)
+					r.insertTable.location = { ...r.insertTable.location, tabId };
+				if (r.insertTable.endOfSegmentLocation)
+					r.insertTable.endOfSegmentLocation = {
+						...r.insertTable.endOfSegmentLocation,
+						tabId,
+					};
+			}
+			if (r.insertPageBreak)
+				r.insertPageBreak = {
+					...r.insertPageBreak,
+					location: { ...r.insertPageBreak.location, tabId },
+				};
+			return r;
+		});
+	}
+
 	static async createGoogleDocsDocumentWithAPI(
 		executeFunctions: IExecuteFunctions,
 		markdownInput: string,
@@ -369,6 +422,131 @@ export class GoogleDocsAPI {
 				folderId,
 				folderName: finalFolderName,
 				message: `Document "${documentTitle}" has been created in folder "${finalFolderName}".`,
+			};
+		} catch (error) {
+			throw new NodeOperationError(executeFunctions.getNode(), error);
+		}
+	}
+
+	static async updateGoogleDocsDocument(
+		executeFunctions: IExecuteFunctions,
+		documentId: string,
+		markdownInput: string,
+		updateMode: 'append' | 'overwrite' | 'insertAt',
+		insertIndex?: number,
+		tabId?: string,
+	): Promise<DocumentUpdateResult> {
+		try {
+			const baseHeaders: Record<string, string> = {};
+			if (tabId) {
+				baseHeaders['X-Goog-Docs-Features'] = 'tab';
+			}
+
+			let insertAt: number;
+
+			if (updateMode === 'append' || updateMode === 'overwrite') {
+				const getQs: Record<string, string | boolean> = { fields: 'body.content' };
+				if (tabId) getQs.tabId = tabId;
+
+				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}`,
+						qs: getQs,
+						headers: baseHeaders,
+					},
+				);
+
+				const content = doc.body?.content;
+				if (!content || content.length === 0) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						'Could not read document content. Verify the document exists and you have edit access.',
+					);
+				}
+
+				const lastElement = content[content.length - 1];
+				const endIndex = lastElement.endIndex as number;
+
+				if (updateMode === 'overwrite') {
+					const clearRequests: GoogleDocsRequest[] = [];
+
+					if (endIndex > 2) {
+						clearRequests.push({
+							deleteContentRange: {
+								range: { startIndex: 1, endIndex: endIndex - 1, ...(tabId ? { tabId } : {}) },
+							},
+						});
+					}
+
+					clearRequests.push({
+						updateParagraphStyle: {
+							range: { startIndex: 1, endIndex: 2, ...(tabId ? { tabId } : {}) },
+							paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
+							fields: 'namedStyleType',
+						},
+					});
+
+					await executeFunctions.helpers.httpRequestWithAuthentication.call(
+						executeFunctions,
+						'googleDocsOAuth2Api',
+						{
+							method: 'POST' as IHttpRequestMethods,
+							url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+							body: { requests: clearRequests },
+							headers: baseHeaders,
+						},
+					);
+
+					insertAt = 1;
+				} else {
+					insertAt = endIndex - 1;
+				}
+			} else {
+				insertAt = insertIndex ?? 1;
+			}
+
+			if (!markdownInput.trim()) {
+				throw new NodeOperationError(
+					executeFunctions.getNode(),
+					'Markdown input is required for the Update Existing Document operation.',
+				);
+			}
+
+			const apiRequests = MarkdownProcessor.convertMarkdownToApiRequests(
+				markdownInput,
+				'',
+				'single',
+				insertAt,
+			);
+
+			if (apiRequests.batchUpdateRequest.requests.length > 0) {
+				const requests = tabId
+					? GoogleDocsAPI.addTabIdToRequests(apiRequests.batchUpdateRequest.requests, tabId)
+					: apiRequests.batchUpdateRequest.requests;
+
+				await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'POST' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+						body: { requests },
+						headers: baseHeaders,
+					},
+				);
+			}
+
+			return {
+				success: true,
+				documentId,
+				documentUrl: `https://docs.google.com/document/d/${documentId}/edit`,
+				updateMode,
+				insertAt,
+				...(tabId ? { tabId } : {}),
+				message: `Document updated successfully (mode: ${updateMode}, insertAt: ${insertAt}).`,
 			};
 		} catch (error) {
 			throw new NodeOperationError(executeFunctions.getNode(), error);
