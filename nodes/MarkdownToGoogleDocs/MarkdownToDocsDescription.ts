@@ -16,6 +16,12 @@ export const markdownToDocsOperations: INodeProperties[] = [
 				action: 'Directly create a google docs document',
 			},
 			{
+				name: 'Update Existing Document',
+				value: 'updateDocument',
+				description: 'Append, overwrite, or insert Markdown content into an existing Google Doc',
+				action: 'Update an existing google docs document',
+			},
+			{
 				name: 'Convert to API Requests',
 				value: 'convertToApiRequests',
 				description: 'Convert Markdown to Google Docs API requests',
@@ -63,7 +69,7 @@ const markdownInputProperty: INodeProperties = {
 	placeholder: '# My Document...',
 	displayOptions: {
 		show: {
-			operation: ['createDocument', 'convertToApiRequests'],
+			operation: ['createDocument', 'convertToApiRequests', 'updateDocument'],
 		},
 		hide: {
 			operation: ['testCredentials', 'exportGoogleDoc'],
@@ -79,7 +85,7 @@ const markdownInputNotice: INodeProperties = {
 	default: undefined,
 	displayOptions: {
 		show: {
-			operation: ['createDocument', 'convertToApiRequests'],
+			operation: ['createDocument', 'convertToApiRequests', 'updateDocument'],
 			markdownInput: [''],
 		},
 	},
@@ -690,6 +696,141 @@ const createDocumentOperation: INodeProperties[] = [
 	},
 ];
 
+// Properties for updateDocument operation
+const updateDocumentOperation: INodeProperties[] = [
+	{
+		displayName: 'Document',
+		name: 'updateDocumentId',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+			},
+		},
+		modes: [
+			{
+				displayName: 'Document',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a document...',
+				typeOptions: {
+					searchListMethod: 'getDocuments',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'Link',
+				name: 'url',
+				type: 'string',
+				placeholder:
+					'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
+				extractValue: {
+					type: 'regex',
+					regex: GOOGLE_DOC_URL_REGEX,
+				},
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: GOOGLE_DOC_URL_REGEX,
+							errorMessage: 'Not a valid Google Doc URL',
+						},
+					},
+				],
+			},
+			{
+				displayName: 'ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '[a-zA-Z0-9\\-_]{10,}',
+							errorMessage: 'Not a valid Google Doc ID',
+						},
+					},
+				],
+				url: '=https://docs.google.com/document/d/{{$value}}/edit',
+			},
+		],
+		description: 'The Google Docs document to update',
+	},
+	{
+		displayName: 'Update Mode',
+		name: 'updateMode',
+		type: 'options',
+		default: 'append',
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+			},
+		},
+		options: [
+			{
+				name: 'Append to End',
+				value: 'append',
+				description: 'Add content after the last character of the document',
+			},
+			{
+				name: 'Overwrite Entire Document',
+				value: 'overwrite',
+				description: 'Clear all existing content and formatting, then write fresh',
+			},
+			{
+				name: 'Insert at Index',
+				value: 'insertAt',
+				description: 'Insert content at a specific character position',
+			},
+		],
+		description: 'How to write the Markdown content into the existing document',
+	},
+	{
+		displayName: 'Start Index',
+		name: 'insertIndex',
+		type: 'number',
+		default: 1,
+		typeOptions: {
+			minValue: 1,
+		},
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+				updateMode: ['insertAt'],
+			},
+		},
+		description:
+			'The 1-based character position in the document body where content will be inserted. Warning: this index becomes invalid if the document content changes between workflow runs.',
+		hint: 'Use the Google Docs API or Convert to API Requests operation to find the correct index.',
+	},
+	{
+		displayName: 'Update Options',
+		name: 'updateOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Tab ID',
+				name: 'tabId',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g. t.0',
+				description:
+					'The ID of the tab to write to. Leave empty to use the first (default) tab. Find the tab ID in the Google Docs URL after selecting a tab.',
+			},
+		],
+	},
+];
+
 export const markdownToDocsFields: INodeProperties[] = [
 	/* -------------------------------------------------------------------------- */
 	/*                        convertToApiRequests Operation                      */
@@ -700,6 +841,11 @@ export const markdownToDocsFields: INodeProperties[] = [
 	/*                          createDocument Operation                          */
 	/* -------------------------------------------------------------------------- */
 	...createDocumentOperation,
+
+	/* -------------------------------------------------------------------------- */
+	/*                         updateDocument Operation                           */
+	/* -------------------------------------------------------------------------- */
+	...updateDocumentOperation,
 
 	/* -------------------------------------------------------------------------- */
 	/*                         exportGoogleDoc Operation                          */
