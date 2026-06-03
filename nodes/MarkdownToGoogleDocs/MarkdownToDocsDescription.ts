@@ -8,6 +8,7 @@ export const markdownToDocsOperations: INodeProperties[] = [
 		name: 'operation',
 		type: 'options',
 		noDataExpression: true,
+		// eslint-disable-next-line n8n-nodes-base/node-param-options-type-unsorted-items
 		options: [
 			{
 				name: 'Create Document',
@@ -22,16 +23,16 @@ export const markdownToDocsOperations: INodeProperties[] = [
 				action: 'Update an existing google docs document',
 			},
 			{
-				name: 'Convert to API Requests',
-				value: 'convertToApiRequests',
-				description: 'Convert Markdown to Google Docs API requests',
-				action: 'Convert markdown to google docs api requests',
-			},
-			{
 				name: 'Export Google Doc',
 				value: 'exportGoogleDoc',
 				description: 'Export a Google Docs document to various formats',
 				action: 'Export google docs document to different formats',
+			},
+			{
+				name: 'Convert to API Requests',
+				value: 'convertToApiRequests',
+				description: 'Convert Markdown to Google Docs API requests',
+				action: 'Convert markdown to google docs api requests',
 			},
 			{
 				name: 'Test API Permissions',
@@ -69,10 +70,7 @@ const markdownInputProperty: INodeProperties = {
 	placeholder: '# My Document...',
 	displayOptions: {
 		show: {
-			operation: ['createDocument', 'convertToApiRequests', 'updateDocument'],
-		},
-		hide: {
-			operation: ['testCredentials', 'exportGoogleDoc'],
+			operation: ['createDocument', 'convertToApiRequests'],
 		},
 	},
 };
@@ -85,7 +83,7 @@ const markdownInputNotice: INodeProperties = {
 	default: undefined,
 	displayOptions: {
 		show: {
-			operation: ['createDocument', 'convertToApiRequests', 'updateDocument'],
+			operation: ['createDocument', 'convertToApiRequests'],
 			markdownInput: [''],
 		},
 	},
@@ -756,6 +754,35 @@ const updateDocumentOperation: INodeProperties[] = [
 		description: 'The Google Docs document to update',
 	},
 	{
+		displayName: 'Markdown Input',
+		name: 'markdownInput',
+		type: 'string',
+		typeOptions: {
+			rows: 4,
+		},
+		default: '',
+		description: 'The Markdown content to convert or inject',
+		placeholder: '# My Document...',
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+			},
+		},
+	},
+	{
+		displayName:
+			"Warning: The 'Markdown Input' field is empty. This may cause an error if it is required for your selected options.",
+		name: 'markdownInputNotice',
+		type: 'notice',
+		default: undefined,
+		displayOptions: {
+			show: {
+				operation: ['updateDocument'],
+				markdownInput: [''],
+			},
+		},
+	},
+	{
 		displayName: 'Update Mode',
 		name: 'updateMode',
 		type: 'options',
@@ -824,7 +851,7 @@ const updateDocumentOperation: INodeProperties[] = [
 		hint: 'Use the Google Docs API or Convert to API Requests operation to find the correct index.',
 	},
 	{
-		displayName: 'Update Options',
+		displayName: 'Update Fields',
 		name: 'updateOptions',
 		type: 'collection',
 		placeholder: 'Add Option',
@@ -893,13 +920,13 @@ export const markdownToDocsFields: INodeProperties[] = [
 	/*                          createDocument Operation                          */
 	/* -------------------------------------------------------------------------- */
 	...createDocumentOperation,
+	markdownInputProperty,
+	markdownInputNotice,
 
 	/* -------------------------------------------------------------------------- */
 	/*                         updateDocument Operation                           */
 	/* -------------------------------------------------------------------------- */
 	...updateDocumentOperation,
-	markdownInputProperty,
-	markdownInputNotice,
 
 	/* -------------------------------------------------------------------------- */
 	/*                         exportGoogleDoc Operation                          */
