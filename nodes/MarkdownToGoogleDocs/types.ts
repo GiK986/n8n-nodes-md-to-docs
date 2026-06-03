@@ -218,7 +218,7 @@ export interface DocumentUpdateResult {
 	documentId: string;
 	documentUrl: string;
 	updateMode: 'append' | 'overwrite' | 'insertAt';
-	insertAt: number;
+	insertAt?: number;
 	tabId?: string;
 	message: string;
 }
