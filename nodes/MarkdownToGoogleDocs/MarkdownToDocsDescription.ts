@@ -807,25 +807,43 @@ const updateDocumentOperation: INodeProperties[] = [
 		hint: 'Use the Google Docs API or Convert to API Requests operation to find the correct index.',
 	},
 	{
-		displayName: 'Update Options',
-		name: 'updateOptions',
-		type: 'collection',
-		placeholder: 'Add Option',
-		default: {},
+		displayName: 'Tab',
+		name: 'updateTabId',
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: false,
 		displayOptions: {
 			show: {
 				operation: ['updateDocument'],
 			},
 		},
-		options: [
+		description:
+			'The tab to write content to. Choose "Create New Tab" to insert into a fresh tab, select an existing tab from the list, or enter a tab ID directly. Leave empty to use the default (first) tab.',
+		modes: [
 			{
-				displayName: 'Tab ID',
-				name: 'tabId',
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a tab or create a new one...',
+				typeOptions: {
+					searchListMethod: 'getDocumentTabs',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
 				type: 'string',
-				default: '',
 				placeholder: 'e.g. t.0',
-				description:
-					'The ID of the tab to write to. Leave empty to use the first (default) tab. Find the tab ID in the Google Docs URL after selecting a tab.',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '.+',
+							errorMessage: 'Tab ID cannot be empty when using ID mode',
+						},
+					},
+				],
 			},
 		],
 	},

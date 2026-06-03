@@ -468,8 +468,33 @@ export class GoogleDocsAPI {
 				);
 			}
 
+			let resolvedTabId = tabId;
+
+			if (tabId === '__new_tab__') {
+				const createTabResp = await executeFunctions.helpers.httpRequestWithAuthentication.call(
+					executeFunctions,
+					'googleDocsOAuth2Api',
+					{
+						method: 'POST' as IHttpRequestMethods,
+						url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
+						body: {
+							requests: [{ createTab: { insertTabProperties: { title: 'New Tab' } } }],
+						},
+						headers: { 'X-Goog-Docs-Features': 'tab' },
+					},
+				);
+				resolvedTabId = createTabResp?.replies?.[0]?.createTabResponse?.tab?.tabProperties
+					?.tabId as string | undefined;
+				if (!resolvedTabId) {
+					throw new NodeOperationError(
+						executeFunctions.getNode(),
+						'Failed to create new tab. The Google Docs API did not return a tab ID.',
+					);
+				}
+			}
+
 			const baseHeaders: Record<string, string> = {};
-			if (tabId) {
+			if (resolvedTabId) {
 				baseHeaders['X-Goog-Docs-Features'] = 'tab';
 			}
 
@@ -477,7 +502,7 @@ export class GoogleDocsAPI {
 
 			if (updateMode === 'append' || updateMode === 'overwrite') {
 				const getQs: Record<string, string | boolean> = { fields: 'body.content' };
-				if (tabId) getQs.tabId = tabId;
+				if (resolvedTabId) getQs.tabId = resolvedTabId;
 
 				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
@@ -513,12 +538,20 @@ export class GoogleDocsAPI {
 					if (endIndex > 2) {
 						clearRequests.push({
 							deleteContentRange: {
-								range: { startIndex: 1, endIndex: endIndex - 1, ...(tabId ? { tabId } : {}) },
+								range: {
+									startIndex: 1,
+									endIndex: endIndex - 1,
+									...(resolvedTabId ? { tabId: resolvedTabId } : {}),
+								},
 							},
 						});
 						clearRequests.push({
 							updateParagraphStyle: {
-								range: { startIndex: 1, endIndex: 2, ...(tabId ? { tabId } : {}) },
+								range: {
+									startIndex: 1,
+									endIndex: 2,
+									...(resolvedTabId ? { tabId: resolvedTabId } : {}),
+								},
 								paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
 								fields: 'namedStyleType',
 							},
@@ -552,8 +585,8 @@ export class GoogleDocsAPI {
 			);
 
 			if (apiRequests.batchUpdateRequest.requests.length > 0) {
-				const requests = tabId
-					? GoogleDocsAPI.addTabIdToRequests(apiRequests.batchUpdateRequest.requests, tabId)
+				const requests = resolvedTabId
+					? GoogleDocsAPI.addTabIdToRequests(apiRequests.batchUpdateRequest.requests, resolvedTabId)
 					: apiRequests.batchUpdateRequest.requests;
 
 				await executeFunctions.helpers.httpRequestWithAuthentication.call(
@@ -574,7 +607,7 @@ export class GoogleDocsAPI {
 				documentUrl: `https://docs.google.com/document/d/${documentId}/edit`,
 				updateMode,
 				insertAt,
-				...(tabId ? { tabId } : {}),
+				...(resolvedTabId ? { tabId: resolvedTabId } : {}),
 				message: `Document updated successfully (mode: ${updateMode}, insertAt: ${insertAt}).`,
 			};
 		} catch (error) {

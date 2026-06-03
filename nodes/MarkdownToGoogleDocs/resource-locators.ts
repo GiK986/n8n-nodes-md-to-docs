@@ -243,6 +243,57 @@ export const resourceLocatorMethods = {
 		}
 	},
 
+	async getDocumentTabs(
+		this: ILoadOptionsFunctions,
+		filter?: string,
+		_paginationToken?: string,
+	): Promise<INodeListSearchResult> {
+		const createNewTabItem = { name: 'Create New Tab', value: '__new_tab__' };
+
+		try {
+			let documentId = '';
+			try {
+				const docParam = this.getNodeParameter('updateDocumentId', 0);
+				documentId = extractRLCValue(docParam);
+			} catch {
+				return { results: [createNewTabItem] };
+			}
+
+			if (!documentId) {
+				return { results: [createNewTabItem] };
+			}
+
+			const response = await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'googleDocsOAuth2Api',
+				{
+					method: 'GET' as IHttpRequestMethods,
+					url: `https://docs.googleapis.com/v1/documents/${documentId}`,
+					qs: { fields: 'tabs.tabProperties' },
+					headers: { 'X-Goog-Docs-Features': 'tab' },
+				},
+			);
+
+			const results = [createNewTabItem];
+
+			if (response?.tabs && Array.isArray(response.tabs)) {
+				for (const tab of response.tabs) {
+					const props = tab.tabProperties;
+					if (props?.tabId) {
+						const name = (props.title as string) || `Tab ${(props.index as number) + 1}`;
+						if (!filter || name.toLowerCase().includes(filter.toLowerCase())) {
+							results.push({ name, value: props.tabId as string });
+						}
+					}
+				}
+			}
+
+			return { results };
+		} catch {
+			return { results: [createNewTabItem] };
+		}
+	},
+
 	async getDocuments(
 		this: ILoadOptionsFunctions,
 		filter?: string,
