@@ -8,152 +8,83 @@ export const GOOGLE_DOC_URL_REGEX =
 
 export interface GoogleDocsRequest {
 	insertText?: {
-		location?: { index: number };
-		endOfSegmentLocation?: { segmentId: string };
+		location?: { index: number; tabId?: string };
+		endOfSegmentLocation?: { segmentId: string; tabId?: string };
 		text: string;
 	};
 	insertInlineImage?: {
 		uri: string;
-		location?: { index: number };
-		endOfSegmentLocation?: { segmentId: string };
+		location?: { index: number; tabId?: string };
+		endOfSegmentLocation?: { segmentId: string; tabId?: string };
 		objectSize?: {
-			width?: {
-				magnitude: number;
-				unit: string;
-			};
-			height?: {
-				magnitude: number;
-				unit: string;
-			};
+			width?: { magnitude: number; unit: string };
+			height?: { magnitude: number; unit: string };
 		};
 	};
 	updateTextStyle?: {
-		range: {
-			startIndex: number;
-			endIndex: number;
-		};
+		range: { startIndex: number; endIndex: number; tabId?: string };
 		textStyle: TextStyle;
 		fields: string;
 	};
 	updateParagraphStyle?: {
-		range: {
-			startIndex: number;
-			endIndex: number;
-		};
+		range: { startIndex: number; endIndex: number; tabId?: string };
 		paragraphStyle: {
 			namedStyleType?: string;
 			alignment?: string;
-			bullet?: {
-				listId: string;
-				nestingLevel?: number;
-			};
-			indentFirstLine?: {
-				magnitude: number;
-				unit: string;
-			};
-			indentStart?: {
-				magnitude: number;
-				unit: string;
-			};
+			bullet?: { listId: string; nestingLevel?: number };
+			indentFirstLine?: { magnitude: number; unit: string };
+			indentStart?: { magnitude: number; unit: string };
 			borderLeft?: {
-				color: {
-					color: {
-						rgbColor: {
-							red: number;
-							green: number;
-							blue: number;
-						};
-					};
-				};
-				width: {
-					magnitude: number;
-					unit: string;
-				};
+				color: { color: { rgbColor: { red: number; green: number; blue: number } } };
+				width: { magnitude: number; unit: string };
 				dashStyle: string;
-				padding: {
-					magnitude: number;
-					unit: string;
-				};
+				padding: { magnitude: number; unit: string };
 			};
 			borderBottom?: {
-				color: {
-					color: {
-						rgbColor: {
-							red: number;
-							green: number;
-							blue: number;
-						};
-					};
-				};
-				width: {
-					magnitude: number;
-					unit: string;
-				};
+				color: { color: { rgbColor: { red: number; green: number; blue: number } } };
+				width: { magnitude: number; unit: string };
 				dashStyle: string;
-				padding: {
-					magnitude: number;
-					unit: string;
-				};
+				padding: { magnitude: number; unit: string };
 			};
-			spaceAbove?: {
-				magnitude: number;
-				unit: string;
-			};
-			spaceBelow?: {
-				magnitude: number;
-				unit: string;
-			};
+			spaceAbove?: { magnitude: number; unit: string };
+			spaceBelow?: { magnitude: number; unit: string };
 		};
 		fields: string;
 	};
 	createParagraphBullets?: {
-		range: {
-			startIndex: number;
-			endIndex: number;
-		};
+		range: { startIndex: number; endIndex: number; tabId?: string };
 		bulletPreset: string;
 	};
 	deleteParagraphBullets?: {
-		range: {
-			startIndex: number;
-			endIndex: number;
-		};
+		range: { startIndex: number; endIndex: number; tabId?: string };
 	};
 	replaceAllText?: {
 		replaceText: string;
-		containsText: {
-			text: string;
-			matchCase: boolean;
-		};
+		containsText: { text: string; matchCase: boolean };
 	};
 	deleteContentRange?: {
-		range: {
-			startIndex: number;
-			endIndex: number;
-		};
+		range: { startIndex: number; endIndex: number; tabId?: string };
 	};
 	insertTable?: {
-		location?: { index: number };
-		endOfSegmentLocation?: { segmentId: string };
+		location?: { index: number; tabId?: string };
+		endOfSegmentLocation?: { segmentId: string; tabId?: string };
 		rows: number;
 		columns: number;
 	};
 	insertPageBreak?: {
-		location: { index: number };
+		location: { index: number; tabId?: string };
 	};
 	updateTableCellStyle?: {
 		tableRange: {
 			tableCellLocation: {
-				tableStartLocation: { index: number };
+				tableStartLocation: { index: number; tabId?: string };
 				rowIndex: number;
 				columnIndex: number;
 			};
 			columnSpan?: number;
 			rowSpan?: number;
 		};
-		tableCellStyle: {
-			contentAlignment?: string;
-		};
+		tableCellStyle: { contentAlignment?: string };
 		fields: string;
 	};
 }
@@ -280,4 +211,14 @@ export interface DocumentExportResult {
 	savedFileId?: string;
 	savedFileUrl?: string;
 	targetFolderId?: string;
+}
+
+export interface DocumentUpdateResult {
+	success: boolean;
+	documentId: string;
+	documentUrl: string;
+	updateMode: 'append' | 'overwrite' | 'insertAt';
+	insertAt: number;
+	tabId?: string;
+	message: string;
 }
