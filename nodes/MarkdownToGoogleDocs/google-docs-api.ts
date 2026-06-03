@@ -526,8 +526,9 @@ export class GoogleDocsAPI {
 			let insertAt: number;
 
 			if (updateMode === 'append' || updateMode === 'overwrite') {
-				const getQs: Record<string, string | boolean> = { fields: 'body.content' };
-				if (resolvedTabId) getQs.tabId = resolvedTabId;
+				const getQs: Record<string, string | boolean> = resolvedTabId
+					? { fields: 'tabs.tabProperties,tabs.documentTab.body.content', includeTabsContent: true }
+					: { fields: 'body.content' };
 
 				const doc = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 					executeFunctions,
@@ -540,7 +541,15 @@ export class GoogleDocsAPI {
 					},
 				);
 
-				const content = doc.body?.content;
+				let content;
+				if (resolvedTabId) {
+					const targetTab = (doc.tabs as any[])?.find(
+						(t: any) => t.tabProperties?.tabId === resolvedTabId,
+					);
+					content = targetTab?.documentTab?.body?.content;
+				} else {
+					content = doc.body?.content;
+				}
 				if (!content || content.length === 0) {
 					throw new NodeOperationError(
 						executeFunctions.getNode(),
