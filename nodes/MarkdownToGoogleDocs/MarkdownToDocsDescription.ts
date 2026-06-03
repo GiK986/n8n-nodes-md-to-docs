@@ -818,7 +818,7 @@ const updateDocumentOperation: INodeProperties[] = [
 			},
 		},
 		description:
-			'The tab to write content to. Choose "Create New Tab" to insert into a fresh tab, select an existing tab from the list, or enter a tab ID directly. Leave empty to use the default (first) tab.',
+			'The tab to write content to. Select an existing tab or choose "+ Create New Tab" to create a fresh tab. Leave empty to use the default (first) tab.',
 		modes: [
 			{
 				displayName: 'From List',

@@ -478,12 +478,12 @@ export class GoogleDocsAPI {
 						method: 'POST' as IHttpRequestMethods,
 						url: `https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`,
 						body: {
-							requests: [{ createTab: { insertTabProperties: { title: 'New Tab' } } }],
+							requests: [{ addDocumentTab: { tabProperties: { title: 'New Tab' } } }],
 						},
 						headers: { 'X-Goog-Docs-Features': 'tab' },
 					},
 				);
-				resolvedTabId = createTabResp?.replies?.[0]?.createTabResponse?.tab?.tabProperties
+				resolvedTabId = createTabResp?.replies?.[0]?.addDocumentTab?.tabProperties
 					?.tabId as string | undefined;
 				if (!resolvedTabId) {
 					throw new NodeOperationError(

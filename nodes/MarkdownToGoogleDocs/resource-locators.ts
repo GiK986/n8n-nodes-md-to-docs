@@ -248,7 +248,7 @@ export const resourceLocatorMethods = {
 		filter?: string,
 		_paginationToken?: string,
 	): Promise<INodeListSearchResult> {
-		const createNewTabItem = { name: 'Create New Tab', value: '__new_tab__' };
+		const createNewTabItem = { name: '+ Create New Tab', value: '__new_tab__' };
 
 		try {
 			let documentId = '';
@@ -274,7 +274,7 @@ export const resourceLocatorMethods = {
 				},
 			);
 
-			const results = [createNewTabItem];
+			const results: INodeListSearchItems[] = [createNewTabItem];
 
 			if (response?.tabs && Array.isArray(response.tabs)) {
 				for (const tab of response.tabs) {
