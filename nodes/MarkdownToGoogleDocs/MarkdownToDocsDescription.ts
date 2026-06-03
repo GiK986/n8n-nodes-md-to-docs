@@ -1,5 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
-import { GOOGLE_DRIVE_FOLDER_URL_REGEX } from './types';
+import { GOOGLE_DOC_URL_REGEX, GOOGLE_DRIVE_FOLDER_URL_REGEX } from './types';
 
 // Main operations for Markdown to Google Docs conversion
 export const markdownToDocsOperations: INodeProperties[] = [
@@ -188,13 +188,13 @@ const additionalOptions: INodeProperties = {
 										'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
 									extractValue: {
 										type: 'regex',
-										regex: GOOGLE_DRIVE_FOLDER_URL_REGEX, // Assuming template doc URL is similar to folder
+										regex: GOOGLE_DOC_URL_REGEX,
 									},
 									validation: [
 										{
 											type: 'regex',
 											properties: {
-												regex: GOOGLE_DRIVE_FOLDER_URL_REGEX,
+												regex: GOOGLE_DOC_URL_REGEX,
 												errorMessage: 'Not a valid Google Doc URL',
 											},
 										},
@@ -419,13 +419,13 @@ const exportGoogleDocOperation: INodeProperties[] = [
 					'e.g. https://docs.google.com/document/d/195j9eDD3ccgjQRttHhYymF12r86v_EVYb-2G_9oPaAC/edit',
 				extractValue: {
 					type: 'regex',
-					regex: /(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/document\/d\/([a-zA-Z0-9-_]+)/,
+					regex: GOOGLE_DOC_URL_REGEX,
 				},
 				validation: [
 					{
 						type: 'regex',
 						properties: {
-							regex: /(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/document\/d\/([a-zA-Z0-9-_]+)/,
+							regex: GOOGLE_DOC_URL_REGEX,
 							errorMessage: 'Not a valid Google Doc URL',
 						},
 					},

@@ -11,22 +11,18 @@ export class GoogleDocsExporter {
 		outputOptions?: any,
 	): Promise<DocumentExportResult> {
 		try {
-			// First, get document metadata to retrieve title
+			// Fetch document title via Docs API (requires only `documents` scope, avoids drive.file restriction)
 			const docMetadata = await executeFunctions.helpers.httpRequestWithAuthentication.call(
 				executeFunctions,
 				'googleDocsOAuth2Api',
 				{
 					method: 'GET' as IHttpRequestMethods,
-					url: `https://www.googleapis.com/drive/v3/files/${documentId}`,
-					qs: {
-						fields: 'name,size',
-						includeItemsFromAllDrives: true,
-						supportsAllDrives: true,
-					},
+					url: `https://docs.googleapis.com/v1/documents/${documentId}`,
+					qs: { fields: 'title' },
 				},
 			);
 
-			const documentTitle = docMetadata.name;
+			const documentTitle = docMetadata.title;
 
 			// Export the document using Drive API
 			const exportResponse = await executeFunctions.helpers.httpRequestWithAuthentication.call(
@@ -147,17 +143,23 @@ export class GoogleDocsExporter {
 
 			return result;
 		} catch (error) {
-			if (error.response?.status === 404) {
+			const statusCode =
+				error.statusCode ??
+				error.response?.statusCode ??
+				error.response?.status ??
+				error.cause?.statusCode;
+
+			if (statusCode === 404) {
 				throw new NodeOperationError(
 					executeFunctions.getNode(),
-					`Document with ID "${documentId}" not found. Please verify the document ID and ensure you have access to it.`,
+					`Document with ID "${documentId}" not found or not accessible. Verify the document ID is correct and that the connected Google account has access to it. If the document exists but was not created by this node, re-authenticate your Google credentials and grant Drive read access.`,
 				);
-			} else if (error.response?.status === 403) {
+			} else if (statusCode === 403) {
 				throw new NodeOperationError(
 					executeFunctions.getNode(),
 					`Access denied to document "${documentId}". Please ensure you have read permissions for this document.`,
 				);
-			} else if (error.response?.status === 400) {
+			} else if (statusCode === 400) {
 				throw new NodeOperationError(
 					executeFunctions.getNode(),
 					`Invalid export format "${exportFormat}" for this document type.`,

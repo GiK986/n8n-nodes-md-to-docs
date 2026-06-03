@@ -6,6 +6,20 @@ import type {
 	IDataObject,
 } from 'n8n-workflow';
 
+function extractRLCValue(param: unknown): string {
+	if (!param) return '';
+	if (typeof param !== 'object') return String(param);
+	const p = param as Record<string, unknown>;
+	const rawValue = (p.value as string) || '';
+	if (p.mode === 'url' && rawValue) {
+		let m = /[?&/]folders\/([a-zA-Z0-9_-]+)/.exec(rawValue);
+		if (m) return m[1];
+		m = /\/document\/d\/([a-zA-Z0-9_-]+)/.exec(rawValue);
+		if (m) return m[1];
+	}
+	return rawValue;
+}
+
 export const resourceLocatorMethods = {
 	async getDrives(
 		this: ILoadOptionsFunctions,
@@ -89,11 +103,7 @@ export const resourceLocatorMethods = {
 			let driveId = 'My Drive';
 			try {
 				const driveParam = this.getNodeParameter('driveId', 0);
-				if (driveParam && typeof driveParam === 'object' && 'value' in driveParam) {
-					driveId = (driveParam as any).value;
-				} else if (typeof driveParam === 'string') {
-					driveId = driveParam;
-				}
+				driveId = extractRLCValue(driveParam) || 'My Drive';
 			} catch {
 				// Use default if parameter not available
 			}
@@ -179,11 +189,7 @@ export const resourceLocatorMethods = {
 					'additionalOptions.templateSettings.values.templateFolderId',
 					0,
 				);
-				if (folderParam && typeof folderParam === 'object' && 'value' in folderParam) {
-					folderId = (folderParam as any).value;
-				} else if (typeof folderParam === 'string') {
-					folderId = folderParam;
-				}
+				folderId = extractRLCValue(folderParam);
 			} catch (error) {
 				// No folder selected, return empty results
 				return { results: [] };

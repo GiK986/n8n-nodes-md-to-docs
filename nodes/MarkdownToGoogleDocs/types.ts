@@ -1,6 +1,10 @@
-// Google Drive folder URL regex pattern
+// Google Drive folder URL regex pattern (must be a string — n8n serializes node descriptions as JSON,
+// and n8n wraps validation regex with ^ and $ anchors, so trailing path/query must be optional)
 export const GOOGLE_DRIVE_FOLDER_URL_REGEX =
-	/(?:https?:\/\/)?(?:www\.)?drive\.google\.com\/drive\b.*[?&/]folders\/([a-zA-Z0-9-_]+)/;
+	'(?:https?://)?(?:www\\.)?drive\\.google\\.com/drive\\b.*[?&/]folders/([a-zA-Z0-9_-]+)(?:[/?#].*)?';
+
+export const GOOGLE_DOC_URL_REGEX =
+	'(?:https?://)?(?:www\\.)?docs\\.google\\.com/document/d/([a-zA-Z0-9_-]+)(?:[/?#].*)?';
 
 export interface GoogleDocsRequest {
 	insertText?: {
